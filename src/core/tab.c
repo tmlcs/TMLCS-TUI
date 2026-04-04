@@ -17,7 +17,7 @@ TuiTab* tui_tab_create(TuiWorkspace* ws, const char* name) {
     
     struct ncplane_options opts = {
         .y = -10000, .x = 0, // Oculto por defecto
-        .rows = dimy - 3, .cols = dimx,
+        .rows = dimy - 2, .cols = dimx, // Alineado desde la línea 2
         .flags = 0
     };
     tab->tab_plane = ncplane_create(ws->ws_plane, &opts);
@@ -40,8 +40,30 @@ void tui_tab_add_window(TuiTab* tab, TuiWindow* win) {
         tab->windows = (TuiWindow**)realloc(tab->windows, tab->window_capacity * sizeof(TuiWindow*));
     }
     tab->windows[tab->window_count++] = win;
-    tab->active_window_index = tab->window_count - 1;
+    tab->active_window_index = tab->window_count - 1; // Foco a la nueva
     ncplane_reparent(win->plane, tab->tab_plane); // Ascendiente del Tarea al Tab
+}
+
+void tui_tab_remove_window(TuiTab* tab, TuiWindow* win) {
+    if (!tab || !win) return;
+    int idx = -1;
+    for(int i = 0; i < tab->window_count; i++) {
+        if(tab->windows[i] == win) {
+            idx = i;
+            break;
+        }
+    }
+    if (idx != -1) {
+        for(int i = idx; i < tab->window_count - 1; i++) {
+            tab->windows[i] = tab->windows[i+1];
+        }
+        tab->window_count--;
+        if (tab->active_window_index == idx) {
+            tab->active_window_index = (tab->window_count > 0) ? tab->window_count - 1 : -1;
+        } else if (tab->active_window_index > idx) {
+            tab->active_window_index--;
+        }
+    }
 }
 
 void tui_tab_remove_active_window(TuiTab* tab) {

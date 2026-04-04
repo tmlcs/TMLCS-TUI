@@ -54,7 +54,7 @@ void tui_workspace_set_active_tab(TuiWorkspace* ws, int index) {
         ncplane_move_yx(ws->tabs[ws->active_tab_index]->tab_plane, -10000, 0);
     }
     ws->active_tab_index = index;
-    ncplane_move_yx(ws->tabs[index]->tab_plane, 3, 0); // Restaurar posición (después del header global del main)
+    ncplane_move_yx(ws->tabs[index]->tab_plane, 2, 0); // Restaurar posición bajo el header modificado
     ncplane_move_top(ws->tabs[index]->tab_plane);
 }
 

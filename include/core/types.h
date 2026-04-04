@@ -48,6 +48,12 @@ typedef struct TuiManager {
     struct TuiWindow* dragged_window;
     int drag_start_wly;
     int drag_start_wlx;
+    
+    struct TuiWindow* resizing_window;
+    int resize_start_dimy;
+    int resize_start_dimx;
+    int resize_start_mouse_y;
+    int resize_start_mouse_x;
 } TuiManager;
 
 extern int s_next_id;

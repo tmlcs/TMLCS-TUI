@@ -5,6 +5,7 @@
 
 int tui_manager_get_tab_at(TuiManager* mgr, int y, int x);
 bool tui_manager_process_mouse(TuiManager* mgr, uint32_t key, const struct ncinput* ni);
+bool tui_manager_process_keyboard(TuiManager* mgr, uint32_t key, const struct ncinput* ni);
 TuiManager* tui_manager_create(struct notcurses* nc);
 void tui_manager_destroy(TuiManager* manager);
 void tui_manager_add_workspace(TuiManager* manager, TuiWorkspace* ws);
