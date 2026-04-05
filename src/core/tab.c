@@ -1,22 +1,42 @@
 #include "core/tab.h"
 #include "core/window.h"
+#include "core/logger.h"
+#include "core/theme.h"
 #include <stdlib.h>
 #include <string.h>
 
 TuiTab* tui_tab_create(TuiWorkspace* ws, const char* name) {
+    if (!ws) {
+        tui_log(LOG_ERROR, "tui_tab_create: ws is NULL");
+        return NULL;
+    }
+    if (!name) {
+        tui_log(LOG_ERROR, "tui_tab_create: name is NULL");
+        return NULL;
+    }
     TuiTab* tab = (TuiTab*)calloc(1, sizeof(TuiTab));
+    if (!tab) {
+        tui_log(LOG_ERROR, "OOM en tui_tab_create");
+        return NULL;
+    }
     tab->id = s_next_id++;
     strncpy(tab->name, name, sizeof(tab->name)-1);
+    tab->name[sizeof(tab->name)-1] = '\0'; // Null-terminate explicitly
     
     tab->window_capacity = 4;
     tab->windows = (TuiWindow**)calloc(tab->window_capacity, sizeof(TuiWindow*));
+    if (!tab->windows) {
+        free(tab);
+        tui_log(LOG_ERROR, "OOM en tui_tab_create");
+        return NULL;
+    }
     tab->active_window_index = -1;
     
     unsigned dimy, dimx;
     ncplane_dim_yx(ws->ws_plane, &dimy, &dimx);
     
     struct ncplane_options opts = {
-        .y = -10000, .x = 0, // Oculto por defecto
+        .y = OFFSCREEN_Y, .x = 0, // Oculto por defecto
         .rows = dimy - 2, .cols = dimx, // Alineado desde la línea 2
         .flags = 0
     };
@@ -35,9 +55,16 @@ void tui_tab_destroy(TuiTab* tab) {
 }
 
 void tui_tab_add_window(TuiTab* tab, TuiWindow* win) {
+    if (!tab || !win) return;
     if (tab->window_count >= tab->window_capacity) {
-        tab->window_capacity *= 2;
-        tab->windows = (TuiWindow**)realloc(tab->windows, tab->window_capacity * sizeof(TuiWindow*));
+        int new_capacity = tab->window_capacity * 2;
+        TuiWindow** new_windows = (TuiWindow**)realloc(tab->windows, new_capacity * sizeof(TuiWindow*));
+        if (!new_windows) {
+            tui_log(LOG_ERROR, "OOM en tui_tab_add_window (realloc)");
+            return;
+        }
+        tab->window_capacity = new_capacity;
+        tab->windows = new_windows;
     }
     tab->windows[tab->window_count++] = win;
     tab->active_window_index = tab->window_count - 1; // Foco a la nueva
@@ -97,4 +124,18 @@ TuiWindow* tui_tab_get_window_at(TuiTab* tab, int abs_y, int abs_x, int* wly, in
         }
     }
     return NULL;
+}
+
+// --- Getters ---
+
+const char* tui_tab_get_name(const TuiTab* tab) {
+    return tab ? tab->name : NULL;
+}
+
+int tui_tab_get_id(const TuiTab* tab) {
+    return tab ? tab->id : -1;
+}
+
+int tui_tab_get_window_count(const TuiTab* tab) {
+    return tab ? tab->window_count : 0;
 }

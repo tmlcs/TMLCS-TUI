@@ -1,0 +1,197 @@
+name: TMLCS-TUI CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# Cancel in-progress runs on new push to same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NOTCURSES_DEPS_22: "libnotcurses-dev libpthread-stubs0-dev cmake pkg-config"
+  NOTCURSES_DEPS_24: "libnotcurses-dev cmake pkg-config lcov valgrind clang-tidy"
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Job 1: Build + Test Matrix (GCC + Clang × 22.04 + 24.04)
+  # ──────────────────────────────────────────────
+  build-and-test:
+    name: Build & Test (${{ matrix.compiler }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        compiler: [gcc, clang]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
+            sudo apt-get install -y ${{ env.NOTCURSES_DEPS_22 }}
+          else
+            sudo apt-get install -y ${{ env.NOTCURSES_DEPS_24 }}
+          fi
+
+      - name: Install Clang
+        if: matrix.compiler == 'clang'
+        run: sudo apt-get install -y clang
+
+      - name: Set compiler
+        run: |
+          if [[ "${{ matrix.compiler }}" == "clang" ]]; then
+            echo "CC=clang" >> $GITHUB_ENV
+          else
+            echo "CC=gcc" >> $GITHUB_ENV
+          fi
+
+      - name: Build
+        run: make clean && make
+
+      - name: Run unit tests
+        run: make test
+
+      - name: Upload test runner artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-runner-${{ matrix.compiler }}-${{ matrix.os }}
+          path: build/test_runner
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Job 2: Static Analysis (clang-tidy)
+  # ──────────────────────────────────────────────
+  static-analysis:
+    name: Static Analysis (clang-tidy)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ env.NOTCURSES_DEPS_22 }} clang-tidy
+
+      - name: Run clang-tidy
+        run: make tidy
+
+  # ──────────────────────────────────────────────
+  # Job 3: AddressSanitizer + UBSan
+  # ──────────────────────────────────────────────
+  sanitizer-asan:
+    name: ASAN + UBSan (GCC)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1:abort_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ env.NOTCURSES_DEPS_22 }}
+
+      - name: Build with ASAN + UBSan and run tests
+        run: make clean && make asan
+
+  # ──────────────────────────────────────────────
+  # Job 4: Code Coverage (gcov/lcov)
+  # ──────────────────────────────────────────────
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ env.NOTCURSES_DEPS_22 }} lcov
+
+      - name: Build with coverage flags
+        run: make clean && make coverage
+
+      - name: Upload coverage report (HTML)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/coverage_report/
+          retention-days: 30
+
+      - name: Upload coverage.info
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-info
+          path: build/coverage_filtered.info
+          retention-days: 30
+
+  # ──────────────────────────────────────────────
+  # Job 5: Valgrind Memory Check
+  # ──────────────────────────────────────────────
+  valgrind-check:
+    name: Valgrind Memory Check
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ env.NOTCURSES_DEPS_22 }} valgrind
+
+      - name: Build
+        run: make clean && make
+
+      - name: Run Valgrind on test_runner
+        run: make valgrind
+
+      - name: Upload Valgrind report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: valgrind-report
+          path: build/valgrind_report.txt
+          retention-days: 30
+
+  # ──────────────────────────────────────────────
+  # Job 6: Clang Build (compatibility check)
+  # ──────────────────────────────────────────────
+  clang-build:
+    name: Clang Compatibility Build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ env.NOTCURSES_DEPS_22 }} clang
+
+      - name: Build with Clang
+        run: make clean && CC=clang make
+
+      - name: Run tests with Clang build
+        run: CC=clang make test

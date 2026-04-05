@@ -9,6 +9,7 @@
 static FILE* s_log_file = NULL;
 static TuiLogBuffer s_log_buffer;
 static pthread_mutex_t s_log_mutex = PTHREAD_MUTEX_INITIALIZER;
+static LogLevel s_log_level = LOG_DEBUG; // Default: log everything
 
 void tui_logger_init(const char* filepath) {
     pthread_mutex_lock(&s_log_mutex);
@@ -39,7 +40,13 @@ void tui_logger_destroy(void) {
 
 void tui_log(LogLevel level, const char* format, ...) {
     pthread_mutex_lock(&s_log_mutex);
-    
+
+    // Filter by log level
+    if (level < s_log_level) {
+        pthread_mutex_unlock(&s_log_mutex);
+        return;
+    }
+
     // Time formatting
     time_t rawtime;
     struct tm * timeinfo;
@@ -90,4 +97,17 @@ void tui_log(LogLevel level, const char* format, ...) {
 
 TuiLogBuffer* tui_logger_get_buffer(void) {
     return &s_log_buffer;
+}
+
+void tui_logger_set_level(LogLevel level) {
+    pthread_mutex_lock(&s_log_mutex);
+    s_log_level = level;
+    pthread_mutex_unlock(&s_log_mutex);
+}
+
+LogLevel tui_logger_get_level(void) {
+    pthread_mutex_lock(&s_log_mutex);
+    LogLevel level = s_log_level;
+    pthread_mutex_unlock(&s_log_mutex);
+    return level;
 }

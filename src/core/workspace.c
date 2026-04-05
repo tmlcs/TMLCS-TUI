@@ -1,26 +1,52 @@
 #include "core/workspace.h"
+#include "core/logger.h"
 #include "core/tab.h"
+#include "core/theme.h"
 #include <stdlib.h>
 #include <string.h>
 
 TuiWorkspace* tui_workspace_create(TuiManager* manager, const char* name) {
+    if (!manager) {
+        tui_log(LOG_ERROR, "tui_workspace_create: manager is NULL");
+        return NULL;
+    }
+    if (!name) {
+        tui_log(LOG_ERROR, "tui_workspace_create: name is NULL");
+        return NULL;
+    }
     TuiWorkspace* ws = (TuiWorkspace*)calloc(1, sizeof(TuiWorkspace));
+    if (!ws) {
+        tui_log(LOG_ERROR, "OOM en tui_workspace_create");
+        return NULL;
+    }
     ws->id = s_next_id++;
     strncpy(ws->name, name, sizeof(ws->name)-1);
+    ws->name[sizeof(ws->name)-1] = '\0'; // Null-terminate explicitly
     
     ws->tab_capacity = 4;
     ws->tabs = (TuiTab**)calloc(ws->tab_capacity, sizeof(TuiTab*));
+    if (!ws->tabs) {
+        free(ws);
+        tui_log(LOG_ERROR, "OOM en tui_workspace_create (tabs array)");
+        return NULL;
+    }
     ws->active_tab_index = -1;
     
     unsigned dimy, dimx;
     ncplane_dim_yx(manager->stdplane, &dimy, &dimx);
     
     struct ncplane_options opts = {
-        .y = -10000, .x = 0, // Oculto por defecto
+        .y = OFFSCREEN_Y, .x = 0, // Oculto por defecto
         .rows = dimy - 1, .cols = dimx, // Se reserva la última fila inferior
         .flags = 0
     };
     ws->ws_plane = ncplane_create(manager->stdplane, &opts);
+    if (!ws->ws_plane) {
+        free(ws->tabs);
+        free(ws);
+        tui_log(LOG_ERROR, "Fallo al crear ncplane en tui_workspace_create");
+        return NULL;
+    }
     
     return ws;
 }
@@ -36,9 +62,16 @@ void tui_workspace_destroy(TuiWorkspace* ws) {
 }
 
 void tui_workspace_add_tab(TuiWorkspace* ws, TuiTab* tab) {
+    if (!ws || !tab) return;
     if (ws->tab_count >= ws->tab_capacity) {
-        ws->tab_capacity *= 2;
-        ws->tabs = (TuiTab**)realloc(ws->tabs, ws->tab_capacity * sizeof(TuiTab*));
+        int new_capacity = ws->tab_capacity * 2;
+        TuiTab** new_tabs = (TuiTab**)realloc(ws->tabs, new_capacity * sizeof(TuiTab*));
+        if (!new_tabs) {
+            tui_log(LOG_ERROR, "OOM en tui_workspace_add_tab (realloc)");
+            return;
+        }
+        ws->tab_capacity = new_capacity;
+        ws->tabs = new_tabs;
     }
     ws->tabs[ws->tab_count++] = tab;
     if (ws->active_tab_index == -1) {
@@ -51,7 +84,7 @@ void tui_workspace_set_active_tab(TuiWorkspace* ws, int index) {
     
     // Ocultación off-screen
     if (ws->active_tab_index != -1) {
-        ncplane_move_yx(ws->tabs[ws->active_tab_index]->tab_plane, -10000, 0);
+        ncplane_move_yx(ws->tabs[ws->active_tab_index]->tab_plane, OFFSCREEN_Y, 0);
     }
     ws->active_tab_index = index;
     ncplane_move_yx(ws->tabs[index]->tab_plane, 2, 0); // Restaurar posición bajo el header modificado

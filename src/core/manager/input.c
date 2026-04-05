@@ -2,6 +2,8 @@
 #include "core/workspace.h"
 #include "core/tab.h"
 #include "core/window.h"
+#include "core/theme.h"
+#include "widget/text_input.h"
 #include <string.h>
 
 int tui_manager_get_tab_at(TuiManager* mgr, int y, int x) {
@@ -9,9 +11,9 @@ int tui_manager_get_tab_at(TuiManager* mgr, int y, int x) {
     if (mgr->active_workspace_index == -1) return -1;
     
     TuiWorkspace* ws = mgr->workspaces[mgr->active_workspace_index];
-    int offset_x = 30; // Correspondiente al render
+    int offset_x = TAB_BAR_START_X; // Correspondiente al render
     for (int i = 0; i < ws->tab_count; i++) {
-        int len = strlen(ws->tabs[i]->name) + 6;
+        int len = strlen(ws->tabs[i]->name) + TAB_LABEL_PADDING;
         if (x >= offset_x && x < offset_x + len) {
             return i;
         }
@@ -45,17 +47,18 @@ bool tui_manager_process_mouse(TuiManager* mgr, uint32_t key, const struct ncinp
                         }
                         
                         ncplane_move_top(win->plane);
+                        win->needs_redraw = true; // Foco → repintar
                         unsigned dimy, dimx;
                         ncplane_dim_yx(win->plane, &dimy, &dimx);
                         
-                        if (wly == 0 && wlx == (int)dimx - 2) {
-                            // Click exacto en [X] - anular punteros colgantes antes de liberar
+                        if (wly == 0 && wlx >= (int)dimx - CLOSE_BUTTON_AREA_MIN_X && wlx <= (int)dimx - 1) {
+                            // Click en zona [X] - anular punteros colgantes antes de liberar
                             if (mgr->dragged_window == win)  mgr->dragged_window  = NULL;
                             if (mgr->resizing_window == win) mgr->resizing_window = NULL;
                             tui_tab_remove_window(tab, win);
                             tui_window_destroy(win);
                             return true;
-                        } else if (wly == (int)dimy - 1 && wlx >= (int)dimx - 3 && wlx <= (int)dimx - 1) {
+                        } else if (wly == (int)dimy - 1 && wlx >= (int)dimx - GRIP_AREA_START_X && wlx <= (int)dimx - 1) {
                             // Click ancla inferior ⌟ - Empezar Redimensionado
                             mgr->resizing_window = win;
                             mgr->resize_start_dimy = dimy;
@@ -85,8 +88,8 @@ bool tui_manager_process_mouse(TuiManager* mgr, uint32_t key, const struct ncinp
             unsigned new_dimy = mgr->resize_start_dimy + delta_y;
             unsigned new_dimx = mgr->resize_start_dimx + delta_x;
             
-            if (new_dimy < 4) new_dimy = 4;
-            if (new_dimx < 15) new_dimx = 15;
+            if (new_dimy < WINDOW_MIN_HEIGHT) new_dimy = WINDOW_MIN_HEIGHT;
+            if (new_dimx < WINDOW_MIN_WIDTH) new_dimx = WINDOW_MIN_WIDTH;
             
             struct ncplane* parent = ncplane_parent(mgr->resizing_window->plane);
             unsigned p_dimy, p_dimx;
@@ -98,6 +101,20 @@ bool tui_manager_process_mouse(TuiManager* mgr, uint32_t key, const struct ncinp
             if (wp_x + new_dimx > p_dimx) new_dimx = p_dimx - wp_x;
             
             ncplane_resize_simple(mgr->resizing_window->plane, new_dimy, new_dimx);
+            
+            // Reposicionar el TextInput si la ventana lo tiene
+            // (debe quedar pegado al interior del nuevo ancho de viewport)
+            TuiWindow* rw = mgr->resizing_window;
+            if (rw->text_input) {
+                TuiTextInput* ti = (TuiTextInput*)rw->text_input;
+                int inner_width = (int)new_dimx - INPUT_WIDTH_REDUCTION; // col 1 → col dimx-INPUT_WIDTH_REDUCTION
+                if (inner_width < MIN_TEXT_INPUT_WIDTH) inner_width = MIN_TEXT_INPUT_WIDTH;
+                // Redimensionar el plano del TextInput para que use el nuevo ancho
+                ncplane_resize_simple(ti->plane, 1, (unsigned)inner_width);
+            }
+            
+            // Redibujar el contenido con la nueva geometría
+            if (rw->render_cb) rw->render_cb(rw);
             return true;
         }
     }
@@ -107,20 +124,26 @@ bool tui_manager_process_mouse(TuiManager* mgr, uint32_t key, const struct ncinp
         if (ni->evtype != NCTYPE_RELEASE) {
             struct ncplane* parent = ncplane_parent(mgr->dragged_window->plane);
             int p_abs_y, p_abs_x;
-            unsigned p_dimy, p_dimx, w_dimy, w_dimx;
+            unsigned p_dimy_u, p_dimx_u, w_dimy_u, w_dimx_u;
             
             ncplane_abs_yx(parent, &p_abs_y, &p_abs_x);
-            ncplane_dim_yx(parent, &p_dimy, &p_dimx);
-            ncplane_dim_yx(mgr->dragged_window->plane, &w_dimy, &w_dimx);
+            ncplane_dim_yx(parent, &p_dimy_u, &p_dimx_u);
+            ncplane_dim_yx(mgr->dragged_window->plane, &w_dimy_u, &w_dimx_u);
+            
+            // Cast a int para evitar wrap de unsigned en la aritmetica de clamping
+            int p_dimy = (int)p_dimy_u, p_dimx = (int)p_dimx_u;
+            int w_dimy = (int)w_dimy_u, w_dimx = (int)w_dimx_u;
             
             int new_rel_y = ni->y - p_abs_y - mgr->drag_start_wly;
             int new_rel_x = ni->x - p_abs_x - mgr->drag_start_wlx;
             
-            // Aplicar Clamping Espacial
+            // Clamping Espacial (todo int, sin riesgo de wrap)
             if (new_rel_y < 0) new_rel_y = 0;
-            if ((unsigned)new_rel_y + w_dimy > p_dimy) new_rel_y = p_dimy - w_dimy;
+            if (new_rel_y + w_dimy > p_dimy) new_rel_y = p_dimy - w_dimy;
+            if (new_rel_y < 0) new_rel_y = 0;  // segunda guardia si ventana > padre
             if (new_rel_x < 0) new_rel_x = 0;
-            if ((unsigned)new_rel_x + w_dimx > p_dimx) new_rel_x = p_dimx - w_dimx;
+            if (new_rel_x + w_dimx > p_dimx) new_rel_x = p_dimx - w_dimx;
+            if (new_rel_x < 0) new_rel_x = 0;  // segunda guardia si ventana > padre
             
             ncplane_move_yx(mgr->dragged_window->plane, new_rel_y, new_rel_x);
         }

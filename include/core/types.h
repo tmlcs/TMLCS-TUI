@@ -14,6 +14,10 @@ typedef struct TuiWindow {
     struct ncplane* plane;
     void* user_data;
     void (*render_cb)(struct TuiWindow* win);
+    void (*on_destroy)(struct TuiWindow* win);
+    struct TuiTextInput* text_input;
+    bool needs_redraw;   // Solo se repinta si true
+    bool focused;        // Ventana con foco activo (borde diferente)
 } TuiWindow;
 
 typedef struct TuiTab {

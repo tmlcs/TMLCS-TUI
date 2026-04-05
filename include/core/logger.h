@@ -4,10 +4,10 @@
 #include <stdbool.h>
 
 typedef enum {
+    LOG_DEBUG,
     LOG_INFO,
     LOG_WARN,
-    LOG_ERROR,
-    LOG_DEBUG
+    LOG_ERROR
 } LogLevel;
 
 #define MAX_LOG_LINES 100
@@ -25,5 +25,9 @@ void tui_logger_destroy(void);
 void tui_log(LogLevel level, const char* format, ...);
 
 TuiLogBuffer* tui_logger_get_buffer(void);
+
+// Runtime log level control
+void tui_logger_set_level(LogLevel level);
+LogLevel tui_logger_get_level(void);
 
 #endif // CORE_LOGGER_H

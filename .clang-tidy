@@ -1,0 +1,4 @@
+---
+Checks: bugprone-*,performance-*,readability-*,portability-*,modernize-use-nullptr
+WarningsAsErrors: ''
+HeaderFilterRegex: 'include/.*'

@@ -11,4 +11,9 @@ void tui_tab_remove_window(TuiTab* tab, struct TuiWindow* win);
 void tui_tab_remove_active_window(TuiTab* tab);
 TuiWindow* tui_tab_get_window_at(TuiTab* tab, int abs_y, int abs_x, int* wly, int* wlx);
 
+// Getters
+const char* tui_tab_get_name(const TuiTab* tab);
+int tui_tab_get_id(const TuiTab* tab);
+int tui_tab_get_window_count(const TuiTab* tab);
+
 #endif
