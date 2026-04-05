@@ -13,15 +13,16 @@ static LogLevel s_log_level = LOG_DEBUG; // Default: log everything
 
 void tui_logger_init(const char* filepath) {
     pthread_mutex_lock(&s_log_mutex);
-    
+
     if (filepath) {
         s_log_file = fopen(filepath, "a");
     }
-    
+
     s_log_buffer.head = 0;
     s_log_buffer.count = 0;
     memset(s_log_buffer.lines, 0, sizeof(s_log_buffer.lines));
-    
+    s_log_level = LOG_DEBUG; // Reset to default on each init
+
     pthread_mutex_unlock(&s_log_mutex);
     
     tui_log(LOG_INFO, "Motor de Logging Inicializado. (Ruta: %s)", filepath ? filepath : "N/A");
