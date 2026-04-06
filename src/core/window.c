@@ -77,19 +77,29 @@ void tui_window_mark_dirty(TuiWindow* win) {
     if (win) win->_needs_redraw = true;
 }
 
+int tui_window_get_focused_widget_index(const TuiWindow* win) {
+    return win ? win->_focused_widget_index : -1;
+}
+
+void tui_window_set_focused_widget_index(TuiWindow* win, int index) {
+    if (win) win->_focused_widget_index = index;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Widget registry                                                    */
 /* ------------------------------------------------------------------ */
 
-void tui_window_add_widget(TuiWindow* win, void* widget, struct ncplane* plane, int type) {
-    if (!win || !widget || !plane || type == WIDGET_NONE) return;
+void tui_window_add_widget(TuiWindow* win, void* widget, struct ncplane* plane, int type_id) {
+    if (!win || !widget || !plane) return;
     if (win->_widget_count >= MAX_WINDOW_WIDGETS) {
         tui_log(LOG_ERROR, "tui_window_add_widget: widget limit reached");
         return;
     }
-    win->_widgets[win->_widget_count] = widget;
-    win->_widget_planes[win->_widget_count] = plane;
-    win->_widget_types[win->_widget_count] = type;
+    int widx = win->_widget_count;
+    win->_widgets[widx] = widget;
+    win->_widget_planes[widx] = plane;
+    win->_widget_type_ids[widx] = type_id;
+    win->_widget_focusable[widx] = false;
     win->_widget_count++;
 }
 
@@ -100,7 +110,7 @@ void* tui_window_get_widget_at(TuiWindow* win, int local_y, int local_x, int* ou
     for (int i = win->_widget_count - 1; i >= 0; i--) {
         void* widget = win->_widgets[i];
         struct ncplane* plane = win->_widget_planes[i];
-        int type = win->_widget_types[i];
+        int type_id = win->_widget_type_ids[i];
         if (!widget || !plane) continue;
 
         /* Check if the click falls within this widget's plane */
@@ -119,7 +129,7 @@ void* tui_window_get_widget_at(TuiWindow* win, int local_y, int local_x, int* ou
         int w_local_x = click_abs_x - w_abs_x;
 
         if (w_local_y >= 0 && w_local_y < (int)w_rows && w_local_x >= 0 && w_local_x < (int)w_cols) {
-            if (out_type) *out_type = type;
+            if (out_type) *out_type = type_id;
             return widget;
         }
     }

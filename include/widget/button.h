@@ -21,6 +21,7 @@ typedef struct TuiButton {
     unsigned bg_focused;
     unsigned bg_pressed;
     unsigned fg_text;
+    int _type_id;
 } TuiButton;
 
 /**
@@ -78,5 +79,14 @@ bool tui_button_is_pressed(const TuiButton* btn);
  * @param focused Focus state.
  */
 void tui_button_set_focused(TuiButton* btn, bool focused);
+
+/**
+ * @brief Handle a mouse event.
+ * @param btn Button.
+ * @param key Notcurses key code (NCKEY_BUTTON1, etc.).
+ * @param ni Input details (contains y, x coordinates).
+ * @return true if the event was consumed.
+ */
+bool tui_button_handle_mouse(TuiButton* btn, uint32_t key, const struct ncinput* ni);
 
 #endif /* WIDGET_BUTTON_H */

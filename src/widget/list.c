@@ -1,7 +1,15 @@
 #include "widget/list.h"
 #include "core/theme.h"
+#include "core/widget.h"
 #include <stdlib.h>
 #include <string.h>
+
+/* Forward declarations */
+static void ensure_capacity(TuiList* list);
+void tui_list_ensure_registered(void);
+int tui_list_get_type_id(void);
+
+static int s_list_type_id = -1;
 
 TuiList* tui_list_create(struct ncplane* parent, int y, int x, int width, int height) {
     if (!parent || height < 1 || width < 4) return NULL;
@@ -26,6 +34,9 @@ TuiList* tui_list_create(struct ncplane* parent, int y, int x, int width, int he
     list->bg_selected = THEME_BG_TAB_ACTIVE;
     list->fg_text = THEME_FG_DEFAULT;
     list->fg_selected = THEME_FG_TAB_ACTIVE;
+
+    tui_list_ensure_registered();
+    list->_type_id = s_list_type_id;
 
     tui_list_render(list);
     return list;
@@ -188,4 +199,40 @@ bool tui_list_handle_mouse(TuiList* list, uint32_t key, const struct ncinput* ni
         tui_list_set_selected(list, clicked_item);
     }
     return true;
+}
+
+/* === VTable Implementation === */
+
+static bool v_list_handle_key(void* widget, uint32_t key, const struct ncinput* ni) {
+    TuiList* list = (TuiList*)widget;
+    return tui_list_handle_key(list, key, ni);
+}
+
+static bool v_list_handle_mouse(void* widget, uint32_t key, const struct ncinput* ni) {
+    TuiList* list = (TuiList*)widget;
+    return tui_list_handle_mouse(list, key, ni);
+}
+
+static void v_list_render(void* widget) {
+    tui_list_render((TuiList*)widget);
+}
+
+static bool v_list_is_focusable(void* widget) { (void)widget; return true; }
+
+static const TuiWidgetIface s_list_iface = {
+    .handle_key = v_list_handle_key,
+    .handle_mouse = v_list_handle_mouse,
+    .render = v_list_render,
+    .is_focusable = v_list_is_focusable,
+};
+
+void tui_list_ensure_registered(void) {
+    if (s_list_type_id < 0) {
+        s_list_type_id = tui_widget_register(&s_list_iface);
+    }
+}
+
+int tui_list_get_type_id(void) {
+    tui_list_ensure_registered();
+    return s_list_type_id;
 }

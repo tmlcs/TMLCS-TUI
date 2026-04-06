@@ -31,7 +31,7 @@ struct TuiWindow {
 
     /* Widget registry for mouse event routing */
     void*  _widgets[MAX_WINDOW_WIDGETS];         /**< Registered widget instance pointers */
-    int    _widget_types[MAX_WINDOW_WIDGETS];    /**< Widget type identifiers (TuiWidgetType) */
+    int    _widget_type_ids[MAX_WINDOW_WIDGETS]; /**< Registered widget type_ids */
     struct ncplane* _widget_planes[MAX_WINDOW_WIDGETS]; /**< Widget planes for hit testing */
     bool   _widget_focusable[MAX_WINDOW_WIDGETS];/**< Whether each widget can receive focus */
     int    _widget_count;                        /**< Number of registered widgets */

@@ -1,8 +1,15 @@
 #include "widget/text_input.h"
 #include "core/theme.h"
 #include "core/clipboard.h"
+#include "core/widget.h"
 #include <stdlib.h>
 #include <string.h>
+
+/* Forward declarations */
+void tui_text_input_ensure_registered(void);
+int tui_text_input_get_type_id(void);
+
+static int s_text_input_type_id = -1;
 
 TuiTextInput* tui_text_input_create(struct ncplane* parent,
                                      int y, int x, int width,
@@ -30,6 +37,9 @@ TuiTextInput* tui_text_input_create(struct ncplane* parent,
     ti->fg_normal  = THEME_FG_DEFAULT;   // Blanco texto
     ti->bg_focused = THEME_BG_TEXT_FOC;  // Fondo activo mas claro
     ti->fg_cursor  = THEME_FG_CURSOR;    // Cursor naranja vibrante
+
+    tui_text_input_ensure_registered();
+    ti->_type_id = s_text_input_type_id;
 
     tui_text_input_render(ti);
     return ti;
@@ -309,4 +319,40 @@ void tui_text_input_set_focused(TuiTextInput* ti, bool focused) {
     if (!ti) return;
     ti->focused = focused;
     tui_text_input_render(ti);
+}
+
+/* === VTable Implementation === */
+
+static bool v_text_input_handle_key(void* widget, uint32_t key, const struct ncinput* ni) {
+    TuiTextInput* ti = (TuiTextInput*)widget;
+    return tui_text_input_handle_key(ti, key, ni);
+}
+
+static bool v_text_input_handle_mouse(void* widget, uint32_t key, const struct ncinput* ni) {
+    TuiTextInput* ti = (TuiTextInput*)widget;
+    return tui_text_input_handle_mouse(ti, key, ni);
+}
+
+static void v_text_input_render(void* widget) {
+    tui_text_input_render((TuiTextInput*)widget);
+}
+
+static bool v_text_input_is_focusable(void* widget) { (void)widget; return true; }
+
+static const TuiWidgetIface s_text_input_iface = {
+    .handle_key = v_text_input_handle_key,
+    .handle_mouse = v_text_input_handle_mouse,
+    .render = v_text_input_render,
+    .is_focusable = v_text_input_is_focusable,
+};
+
+void tui_text_input_ensure_registered(void) {
+    if (s_text_input_type_id < 0) {
+        s_text_input_type_id = tui_widget_register(&s_text_input_iface);
+    }
+}
+
+int tui_text_input_get_type_id(void) {
+    tui_text_input_ensure_registered();
+    return s_text_input_type_id;
 }

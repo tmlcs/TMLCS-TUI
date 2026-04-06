@@ -13,6 +13,7 @@ typedef struct TuiProgressBar {
     unsigned fill_color;
     unsigned empty_color;
     unsigned text_color;
+    int _type_id;
 } TuiProgressBar;
 
 /**

@@ -1,7 +1,14 @@
 #include "widget/label.h"
 #include "core/theme.h"
+#include "core/widget.h"
 #include <stdlib.h>
 #include <string.h>
+
+/* Forward declarations */
+void tui_label_ensure_registered(void);
+int tui_label_get_type_id(void);
+
+static int s_label_type_id = -1;
 
 TuiLabel* tui_label_create(struct ncplane* parent, int y, int x, const char* text) {
     if (!parent || !text) return NULL;
@@ -19,6 +26,9 @@ TuiLabel* tui_label_create(struct ncplane* parent, int y, int x, const char* tex
 
     lbl->text = strdup(text);
     lbl->fg_color = THEME_FG_DEFAULT;
+
+    tui_label_ensure_registered();
+    lbl->_type_id = s_label_type_id;
 
     tui_label_render(lbl);
     return lbl;
@@ -56,4 +66,40 @@ void tui_label_render(TuiLabel* lbl) {
 
 const char* tui_label_get_text(const TuiLabel* lbl) {
     return lbl ? lbl->text : NULL;
+}
+
+/* === VTable Implementation === */
+
+static bool v_label_handle_key(void* widget, uint32_t key, const struct ncinput* ni) {
+    (void)widget; (void)key; (void)ni;
+    return false;
+}
+
+static bool v_label_handle_mouse(void* widget, uint32_t key, const struct ncinput* ni) {
+    (void)widget; (void)key; (void)ni;
+    return false;
+}
+
+static void v_label_render(void* widget) {
+    tui_label_render((TuiLabel*)widget);
+}
+
+static bool v_label_is_focusable(void* widget) { (void)widget; return false; }
+
+static const TuiWidgetIface s_label_iface = {
+    .handle_key = v_label_handle_key,
+    .handle_mouse = v_label_handle_mouse,
+    .render = v_label_render,
+    .is_focusable = v_label_is_focusable,
+};
+
+void tui_label_ensure_registered(void) {
+    if (s_label_type_id < 0) {
+        s_label_type_id = tui_widget_register(&s_label_iface);
+    }
+}
+
+int tui_label_get_type_id(void) {
+    tui_label_ensure_registered();
+    return s_label_type_id;
 }

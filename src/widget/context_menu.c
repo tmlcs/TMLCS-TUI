@@ -1,7 +1,14 @@
 #include "widget/context_menu.h"
 #include "core/theme.h"
+#include "core/widget.h"
 #include <stdlib.h>
 #include <string.h>
+
+/* Forward declarations */
+void tui_menu_ensure_registered(void);
+int tui_menu_get_type_id(void);
+
+static int s_menu_type_id = -1;
 
 TuiContextMenu* tui_menu_create(struct ncplane* parent, int y, int x, int width) {
     if (!parent || width < 10) return NULL;
@@ -24,6 +31,9 @@ TuiContextMenu* tui_menu_create(struct ncplane* parent, int y, int x, int width)
     menu->bg_selected = THEME_BG_TAB_ACTIVE;
     menu->fg_text = THEME_FG_DEFAULT;
     menu->fg_selected = THEME_FG_TAB_ACTIVE;
+
+    tui_menu_ensure_registered();
+    menu->_type_id = s_menu_type_id;
 
     return menu;
 }
@@ -134,4 +144,43 @@ bool tui_menu_handle_mouse(TuiContextMenu* menu, uint32_t key, const struct ncin
     }
     tui_menu_hide(menu);
     return true;
+}
+
+/* === VTable Implementation === */
+
+static bool v_menu_handle_key(void* widget, uint32_t key, const struct ncinput* ni) {
+    TuiContextMenu* menu = (TuiContextMenu*)widget;
+    return tui_menu_handle_key(menu, key, ni);
+}
+
+static bool v_menu_handle_mouse(void* widget, uint32_t key, const struct ncinput* ni) {
+    TuiContextMenu* menu = (TuiContextMenu*)widget;
+    return tui_menu_handle_mouse(menu, key, ni);
+}
+
+static void v_menu_render(void* widget) {
+    tui_menu_render((TuiContextMenu*)widget);
+}
+
+static bool v_menu_is_focusable(void* widget) {
+    TuiContextMenu* menu = (TuiContextMenu*)widget;
+    return menu && menu->visible;
+}
+
+static const TuiWidgetIface s_menu_iface = {
+    .handle_key = v_menu_handle_key,
+    .handle_mouse = v_menu_handle_mouse,
+    .render = v_menu_render,
+    .is_focusable = v_menu_is_focusable,
+};
+
+void tui_menu_ensure_registered(void) {
+    if (s_menu_type_id < 0) {
+        s_menu_type_id = tui_widget_register(&s_menu_iface);
+    }
+}
+
+int tui_menu_get_type_id(void) {
+    tui_menu_ensure_registered();
+    return s_menu_type_id;
 }

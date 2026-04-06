@@ -34,22 +34,37 @@ bool tui_window_is_focused(const TuiWindow* win);
 
 /**
  * @brief Register a widget with this window for mouse event routing.
+ *        The widget type is determined by the registered type_id.
  * @param win Window instance. Must not be NULL.
  * @param widget Pointer to the widget instance. Must not be NULL.
  * @param plane Widget's ncplane (for hit testing). Must not be NULL.
- * @param type Widget type (WIDGET_BUTTON, WIDGET_CHECKBOX, etc.).
+ * @param type_id Registered widget type_id (from tui_*_get_type_id()).
  */
-void tui_window_add_widget(TuiWindow* win, void* widget, struct ncplane* plane, int type);
+void tui_window_add_widget(TuiWindow* win, void* widget, struct ncplane* plane, int type_id);
 
 /**
  * @brief Find the widget at the given local coordinates.
  * @param win Window instance. Must not be NULL.
  * @param local_y Y coordinate relative to the window plane.
  * @param local_x X coordinate relative to the window plane.
- * @param out_type Optional output for the widget type. May be NULL.
+ * @param out_type Optional output for the registered widget type_id. May be NULL.
  * @return Pointer to the widget, or NULL if no widget at this position.
  */
 void* tui_window_get_widget_at(TuiWindow* win, int local_y, int local_x, int* out_type);
+
+/**
+ * @brief Get the focused widget index within the window.
+ * @param win Window instance, or NULL.
+ * @return Index of focused widget, or -1 if none.
+ */
+int tui_window_get_focused_widget_index(const TuiWindow* win);
+
+/**
+ * @brief Set the focused widget index within the window.
+ * @param win Window instance, or NULL.
+ * @param index New focused widget index.
+ */
+void tui_window_set_focused_widget_index(TuiWindow* win, int index);
 
 /**
  * @brief Mark the window for redraw on the next render cycle.

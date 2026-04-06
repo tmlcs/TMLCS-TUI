@@ -1,7 +1,14 @@
 #include "widget/progress.h"
 #include "core/theme.h"
+#include "core/widget.h"
 #include <stdlib.h>
 #include <stdio.h>
+
+/* Forward declarations */
+void tui_progress_ensure_registered(void);
+int tui_progress_get_type_id(void);
+
+static int s_progress_type_id = -1;
 
 TuiProgressBar* tui_progress_create(struct ncplane* parent, int y, int x, int width) {
     if (!parent || width < 6) return NULL;
@@ -20,6 +27,9 @@ TuiProgressBar* tui_progress_create(struct ncplane* parent, int y, int x, int wi
     pb->fill_color = THEME_FG_LOG_INFO;
     pb->empty_color = THEME_FG_TAB_INA;
     pb->text_color = THEME_FG_DEFAULT;
+
+    tui_progress_ensure_registered();
+    pb->_type_id = s_progress_type_id;
 
     tui_progress_render(pb);
     return pb;
@@ -80,4 +90,40 @@ void tui_progress_render(TuiProgressBar* pb) {
     ncplane_set_fg_rgb(pb->plane, pb->text_color);
     ncplane_set_bg_rgb(pb->plane, fill > pct_start ? pb->fill_color : THEME_BG_DARKEST);
     ncplane_putstr_yx(pb->plane, 0, pct_start, pct);
+}
+
+/* === VTable Implementation === */
+
+static bool v_progress_handle_key(void* widget, uint32_t key, const struct ncinput* ni) {
+    (void)widget; (void)key; (void)ni;
+    return false;
+}
+
+static bool v_progress_handle_mouse(void* widget, uint32_t key, const struct ncinput* ni) {
+    (void)widget; (void)key; (void)ni;
+    return false;
+}
+
+static void v_progress_render(void* widget) {
+    tui_progress_render((TuiProgressBar*)widget);
+}
+
+static bool v_progress_is_focusable(void* widget) { (void)widget; return false; }
+
+static const TuiWidgetIface s_progress_iface = {
+    .handle_key = v_progress_handle_key,
+    .handle_mouse = v_progress_handle_mouse,
+    .render = v_progress_render,
+    .is_focusable = v_progress_is_focusable,
+};
+
+void tui_progress_ensure_registered(void) {
+    if (s_progress_type_id < 0) {
+        s_progress_type_id = tui_widget_register(&s_progress_iface);
+    }
+}
+
+int tui_progress_get_type_id(void) {
+    tui_progress_ensure_registered();
+    return s_progress_type_id;
 }

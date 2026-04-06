@@ -20,6 +20,7 @@ typedef struct TuiList {
     unsigned bg_selected;
     unsigned fg_text;
     unsigned fg_selected;
+    int _type_id;
 } TuiList;
 
 /**
@@ -101,5 +102,14 @@ int tui_list_get_count(const TuiList* list);
  * @param focused Focus state.
  */
 void tui_list_set_focused(TuiList* list, bool focused);
+
+/**
+ * @brief Handle a mouse event.
+ * @param list List.
+ * @param key Notcurses key code (NCKEY_BUTTON1, etc.).
+ * @param ni Input details.
+ * @return true if consumed.
+ */
+bool tui_list_handle_mouse(TuiList* list, uint32_t key, const struct ncinput* ni);
 
 #endif /* WIDGET_LIST_H */

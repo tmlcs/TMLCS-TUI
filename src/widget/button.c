@@ -1,7 +1,14 @@
 #include "widget/button.h"
 #include "core/theme.h"
+#include "core/widget.h"
 #include <stdlib.h>
 #include <string.h>
+
+/* Forward declarations */
+void tui_button_ensure_registered(void);
+int tui_button_get_type_id(void);
+
+static int s_button_type_id = -1;
 
 TuiButton* tui_button_create(struct ncplane* parent, int y, int x, int width,
                               const char* label, TuiButtonCb cb, void* userdata) {
@@ -26,6 +33,9 @@ TuiButton* tui_button_create(struct ncplane* parent, int y, int x, int width,
     btn->bg_focused = THEME_BG_TEXT_FOC;
     btn->bg_pressed = THEME_BG_TAB_ACTIVE;
     btn->fg_text = THEME_FG_DEFAULT;
+
+    tui_button_ensure_registered();
+    btn->_type_id = s_button_type_id;
 
     tui_button_render(btn);
     return btn;
@@ -111,4 +121,49 @@ void tui_button_render(TuiButton* btn) {
     int start = ((int)cols - label_len) / 2;
     if (start < 1) start = 1;
     ncplane_putstr_yx(btn->plane, 0, start, btn->label);
+}
+
+/* === VTable Implementation === */
+
+static bool v_button_handle_key(void* widget, uint32_t key, const struct ncinput* ni) {
+    TuiButton* btn = (TuiButton*)widget;
+    if (!btn || ni->evtype == NCTYPE_RELEASE) return false;
+    if (key == NCKEY_ENTER || key == '\n' || key == '\r') {
+        btn->pressed = true;
+        tui_button_render(btn);
+        if (btn->cb) btn->cb(btn->userdata);
+        btn->pressed = false;
+        tui_button_render(btn);
+        return true;
+    }
+    return false;
+}
+
+static bool v_button_handle_mouse(void* widget, uint32_t key, const struct ncinput* ni) {
+    TuiButton* btn = (TuiButton*)widget;
+    return tui_button_handle_mouse(btn, key, ni);
+}
+
+static void v_button_render(void* widget) {
+    tui_button_render((TuiButton*)widget);
+}
+
+static bool v_button_is_focusable(void* widget) { (void)widget; return true; }
+
+static const TuiWidgetIface s_button_iface = {
+    .handle_key = v_button_handle_key,
+    .handle_mouse = v_button_handle_mouse,
+    .render = v_button_render,
+    .is_focusable = v_button_is_focusable,
+};
+
+void tui_button_ensure_registered(void) {
+    if (s_button_type_id < 0) {
+        s_button_type_id = tui_widget_register(&s_button_iface);
+    }
+}
+
+int tui_button_get_type_id(void) {
+    tui_button_ensure_registered();
+    return s_button_type_id;
 }

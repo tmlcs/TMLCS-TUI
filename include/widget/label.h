@@ -10,6 +10,7 @@ typedef struct TuiLabel {
     struct ncplane* plane;
     char* text;
     unsigned fg_color;
+    int _type_id;
 } TuiLabel;
 
 /**

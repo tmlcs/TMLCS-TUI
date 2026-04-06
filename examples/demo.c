@@ -762,7 +762,8 @@ int demo_main(struct notcurses* nc) {
         g_active_input->focused = true;
         win_con_input->_text_input = g_active_input;
         win_con_input->_on_destroy = console_on_destroy;
-        tui_window_add_widget(win_con_input, g_active_input, g_active_input->plane, WIDGET_TEXT_INPUT);
+        tui_text_input_ensure_registered();
+        tui_window_add_widget(win_con_input, g_active_input, g_active_input->plane, tui_text_input_get_type_id());
     }
 
     /* ============================================================

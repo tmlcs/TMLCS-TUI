@@ -24,6 +24,7 @@ typedef struct TuiTextArea {
     unsigned bg_focused;
     unsigned fg_text;
     unsigned fg_cursor;
+    int _type_id;
 } TuiTextArea;
 
 /**
@@ -67,9 +68,11 @@ void tui_textarea_clear(TuiTextArea* ta);
 /**
  * @brief Get the full text content (joined by newlines).
  * @param ta Text area.
- * @return Pointer to internal buffer (do NOT free), or NULL.
+ * @param buf Caller-provided buffer. Must not be NULL.
+ * @param max_len Size of buf in bytes.
+ * @return Number of bytes written (excluding null terminator), or -1 if ta is NULL.
  */
-const char* tui_textarea_get(TuiTextArea* ta);
+int tui_textarea_get(TuiTextArea* ta, char* buf, int max_len);
 
 /**
  * @brief Get the number of lines.

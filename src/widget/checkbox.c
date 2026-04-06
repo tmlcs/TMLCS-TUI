@@ -1,7 +1,14 @@
 #include "widget/checkbox.h"
 #include "core/theme.h"
+#include "core/widget.h"
 #include <stdlib.h>
 #include <string.h>
+
+/* Forward declarations */
+void tui_checkbox_ensure_registered(void);
+int tui_checkbox_get_type_id(void);
+
+static int s_checkbox_type_id = -1;
 
 TuiCheckbox* tui_checkbox_create(struct ncplane* parent, int y, int x,
                                   const char* label, bool checked,
@@ -28,6 +35,9 @@ TuiCheckbox* tui_checkbox_create(struct ncplane* parent, int y, int x,
     c->fg_label = THEME_FG_DEFAULT;
     c->bg_normal = THEME_BG_DARKEST;
     c->bg_focused = THEME_BG_TEXT_FOC;
+
+    tui_checkbox_ensure_registered();
+    c->_type_id = s_checkbox_type_id;
 
     tui_checkbox_render(c);
     return c;
@@ -117,4 +127,40 @@ bool tui_checkbox_handle_mouse(TuiCheckbox* c, uint32_t key, const struct ncinpu
     if (c->cb) c->cb(c->checked, c->userdata);
     tui_checkbox_render(c);
     return true;
+}
+
+/* === VTable Implementation === */
+
+static bool v_checkbox_handle_key(void* widget, uint32_t key, const struct ncinput* ni) {
+    TuiCheckbox* c = (TuiCheckbox*)widget;
+    return tui_checkbox_handle_key(c, key, ni);
+}
+
+static bool v_checkbox_handle_mouse(void* widget, uint32_t key, const struct ncinput* ni) {
+    TuiCheckbox* c = (TuiCheckbox*)widget;
+    return tui_checkbox_handle_mouse(c, key, ni);
+}
+
+static void v_checkbox_render(void* widget) {
+    tui_checkbox_render((TuiCheckbox*)widget);
+}
+
+static bool v_checkbox_is_focusable(void* widget) { (void)widget; return true; }
+
+static const TuiWidgetIface s_checkbox_iface = {
+    .handle_key = v_checkbox_handle_key,
+    .handle_mouse = v_checkbox_handle_mouse,
+    .render = v_checkbox_render,
+    .is_focusable = v_checkbox_is_focusable,
+};
+
+void tui_checkbox_ensure_registered(void) {
+    if (s_checkbox_type_id < 0) {
+        s_checkbox_type_id = tui_widget_register(&s_checkbox_iface);
+    }
+}
+
+int tui_checkbox_get_type_id(void) {
+    tui_checkbox_ensure_registered();
+    return s_checkbox_type_id;
 }

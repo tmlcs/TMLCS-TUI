@@ -5,6 +5,7 @@
 #include "core/theme.h"
 #include "core/help.h"
 #include "core/types_private.h"
+#include "core/widget.h"
 #include "widget/text_input.h"
 #include "widget/button.h"
 #include "widget/checkbox.h"
@@ -12,6 +13,16 @@
 #include "widget/context_menu.h"
 #include <string.h>
 #include <stdio.h>
+
+/* Forward declarations for widget type registration */
+void tui_text_input_ensure_registered(void);
+int tui_text_input_get_type_id(void);
+void tui_textarea_ensure_registered(void);
+int tui_textarea_get_type_id(void);
+void tui_label_ensure_registered(void);
+int tui_label_get_type_id(void);
+void tui_progress_ensure_registered(void);
+int tui_progress_get_type_id(void);
 
 /* ------------------------------------------------------------------ */
 /*  Helpers - static, file-scope only                                  */
@@ -52,27 +63,10 @@ static bool process_window_click(TuiManager* mgr, TuiTab* tab, uint32_t key, con
 
     /* --- Try widget mouse handling first --- */
     if (key == NCKEY_BUTTON1 && ni->evtype == NCTYPE_PRESS) {
-        int wtype = 0;
-        void* widget = tui_window_get_widget_at(win, wly, wlx, &wtype);
+        int wtype_id = 0;
+        void* widget = tui_window_get_widget_at(win, wly, wlx, &wtype_id);
         if (widget) {
-            bool consumed = false;
-            switch (wtype) {
-                case WIDGET_BUTTON:
-                    consumed = tui_button_handle_mouse(widget, key, ni);
-                    break;
-                case WIDGET_CHECKBOX:
-                    consumed = tui_checkbox_handle_mouse(widget, key, ni);
-                    break;
-                case WIDGET_LIST:
-                    consumed = tui_list_handle_mouse(widget, key, ni);
-                    break;
-                case WIDGET_CONTEXT_MENU:
-                    consumed = tui_menu_handle_mouse(widget, key, ni);
-                    break;
-                case WIDGET_TEXT_INPUT:
-                    consumed = tui_text_input_handle_mouse(widget, key, ni);
-                    break;
-            }
+            bool consumed = tui_widget_handle_mouse(wtype_id, widget, key, ni);
             if (consumed) return true;
         }
     }
@@ -402,12 +396,58 @@ bool tui_manager_process_keyboard(TuiManager* mgr, uint32_t key, const struct nc
         if (ws->_active_tab_index != -1) {
             TuiTab* tab = ws->_tabs[ws->_active_tab_index];
             if (tab->_window_count > 0) {
+                TuiWindow* focused_win = tab->_windows[tab->_active_window_index];
+                if (!focused_win) return true;
+
+                /* If window has widgets, traverse widget focus */
+                if (focused_win->_widget_count > 0) {
+                    int current = focused_win->_focused_widget_index;
+                    int next = -1;
+                    int count = focused_win->_widget_count;
+
+                    for (int i = 0; i < count; i++) {
+                        int idx;
+                        if (ni->shift) {
+                            idx = (current - 1 - i + count) % count;
+                        } else {
+                            idx = (current + 1 + i) % count;
+                        }
+                        if (idx < 0) idx += count;
+                        int type_id = focused_win->_widget_type_ids[idx];
+                        void* w = focused_win->_widgets[idx];
+                        if (w && tui_widget_is_focusable(type_id, w)) {
+                            next = idx;
+                            break;
+                        }
+                    }
+
+                    if (next >= 0) {
+                        /* Blur current */
+                        if (current >= 0) {
+                            int cur_type_id = focused_win->_widget_type_ids[current];
+                            const TuiWidgetIface* iface = tui_widget_get_iface(cur_type_id);
+                            if (iface && iface->on_blur) {
+                                iface->on_blur(focused_win->_widgets[current]);
+                            }
+                        }
+
+                        /* Focus next */
+                        focused_win->_focused_widget_index = next;
+                        int type_id = focused_win->_widget_type_ids[next];
+                        const TuiWidgetIface* iface = tui_widget_get_iface(type_id);
+                        if (iface && iface->on_focus) {
+                            iface->on_focus(focused_win->_widgets[next]);
+                        }
+                        tui_window_mark_dirty(focused_win);
+                        return true;
+                    }
+                }
+
+                /* Fall back to window-level cycling */
                 if (ni->shift) {
-                    /* Reverse cycle */
                     int prev = (tab->_active_window_index - 1 + tab->_window_count) % tab->_window_count;
                     tab->_active_window_index = prev;
                 } else {
-                    /* Forward cycle */
                     int next = (tab->_active_window_index + 1) % tab->_window_count;
                     tab->_active_window_index = next;
                 }

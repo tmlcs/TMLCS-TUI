@@ -143,6 +143,9 @@ $(BUILD_DIR)/test_%_runner: tests/test_%.c $(filter-out $(BUILD_DIR)/main.o $(BU
 # Tab and workspace tests: compile core sources directly with stubs (no notcurses link)
 TAB_WS_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
 
+# Widget sources needed when manager/input.c references widget mouse handlers
+WIDGET_MOUSE_SRCS = src/widget/button.c src/widget/checkbox.c src/widget/list.c src/widget/context_menu.c src/widget/textarea.c src/widget/text_input.c src/core/widget.c
+
 $(BUILD_DIR)/test_tab_runner: tests/test_tab.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_tab.c $(TAB_WS_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
@@ -165,14 +168,14 @@ MANAGER_INPUT_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c 
 
 $(BUILD_DIR)/test_manager_input_runner: tests/test_manager_input.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ tests/test_manager_input.c $(MANAGER_INPUT_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
+	$(CC) $(CFLAGS) -o $@ tests/test_manager_input.c $(MANAGER_INPUT_CORE_SRCS) $(WIDGET_MOUSE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
 
 # Manager render tests: core sources (including manager/render.c) + stubs
-MANAGER_RENDER_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/render.c src/core/manager/state.c src/core/manager/utils.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
+MANAGER_RENDER_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/render.c src/core/manager/input.c src/core/manager/state.c src/core/manager/utils.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
 
 $(BUILD_DIR)/test_manager_render_runner: tests/test_manager_render.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ tests/test_manager_render.c $(MANAGER_RENDER_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
+	$(CC) $(CFLAGS) -o $@ tests/test_manager_render.c $(MANAGER_RENDER_CORE_SRCS) $(WIDGET_MOUSE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
 
 # Manager utils tests: core sources + stubs
 MANAGER_UTILS_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
@@ -186,19 +189,24 @@ MANAGER_FULL_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c s
 
 $(BUILD_DIR)/test_integration_runner: tests/test_integration.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ tests/test_integration.c $(MANAGER_FULL_CORE_SRCS) src/widget/text_input.c tests/nc_stubs.c -Iinclude -g -lpthread
+	$(CC) $(CFLAGS) -o $@ tests/test_integration.c $(MANAGER_FULL_CORE_SRCS) $(WIDGET_MOUSE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
 
 # Text input tests: widget + logger + stubs
 $(BUILD_DIR)/test_text_input_runner: tests/test_text_input.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ tests/test_text_input.c src/widget/text_input.c src/core/logger.c src/core/clipboard.c tests/nc_stubs.c -Iinclude -g -lpthread
+	$(CC) $(CFLAGS) -o $@ tests/test_text_input.c src/widget/text_input.c src/core/widget.c src/core/logger.c src/core/clipboard.c tests/nc_stubs.c -Iinclude -g -lpthread
 
-# Widgets tests: all 6 new widgets + logger + stubs + math
+# Widgets tests: all 6 new widgets + logger + stubs + math + widget.c for VTable
 WIDGET_SRCS = src/widget/label.c src/widget/button.c src/widget/progress.c src/widget/list.c src/widget/textarea.c src/widget/checkbox.c src/widget/context_menu.c
 
 $(BUILD_DIR)/test_widgets_runner: tests/test_widgets.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ tests/test_widgets.c $(WIDGET_SRCS) src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread -lm
+	$(CC) $(CFLAGS) -o $@ tests/test_widgets.c $(WIDGET_SRCS) src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread -lm
+
+# Context menu tests: context_menu widget + logger + stubs + widget.c for VTable
+$(BUILD_DIR)/test_context_menu_runner: tests/test_context_menu.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_context_menu.c src/widget/context_menu.c src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread
 
 # Logger tests don't need stubs (pure C, no notcurses)
 $(BUILD_DIR)/test_logger_runner: tests/test_logger.c $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o,$(OBJS))
@@ -208,6 +216,28 @@ $(BUILD_DIR)/test_logger_runner: tests/test_logger.c $(filter-out $(BUILD_DIR)/m
 $(BUILD_DIR)/test_logger_extended_runner: tests/test_logger_extended.c $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o,$(OBJS))
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+# Theme loader tests: pure C + logger (no stubs needed)
+$(BUILD_DIR)/test_theme_loader_runner: tests/test_theme_loader.c src/core/theme_loader.c src/core/logger.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_theme_loader.c src/core/theme_loader.c src/core/logger.c -Iinclude -g -lpthread -lm
+
+# Clipboard tests: pure C + logger (no stubs needed)
+$(BUILD_DIR)/test_clipboard_runner: tests/test_clipboard.c src/core/clipboard.c src/core/logger.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_clipboard.c src/core/clipboard.c src/core/logger.c -Iinclude -g -lpthread
+
+# Render benchmark: uses logger + core types (no notcurses stubs needed)
+$(BUILD_DIR)/benchmark_render_runner: tests/benchmark_render.c src/core/logger.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/benchmark_render.c src/core/logger.c -Iinclude -g -lpthread
+
+benchmark: $(BUILD_DIR)/benchmark_render_runner
+	@echo "--- Running Render Benchmark ---"
+	@./$(BUILD_DIR)/benchmark_render_runner
+
+check: test-all
+	@:
 
 # Run ALL tests
 test-all: $(TEST_RUNNERS)
@@ -329,6 +359,11 @@ fmt:
 .PHONY: install uninstall
 
 install: all
+	@if [ "$(shell id -u)" -ne 0 ] && [ "$(PREFIX)" = "/usr/local" ]; then \
+		echo "Error: Installation to $(PREFIX) requires root privileges."; \
+		echo "Please run: sudo make install"; \
+		exit 1; \
+	fi
 	@echo "Installing tmlcs-tui to $(PREFIX)..."
 	@mkdir -p $(INSTALL_DIR)/core
 	@mkdir -p $(INSTALL_DIR)/widget
@@ -340,14 +375,28 @@ install: all
 	@install -m 644 include/core/workspace.h $(INSTALL_DIR)/core/
 	@install -m 644 include/core/tab.h $(INSTALL_DIR)/core/
 	@install -m 644 include/core/window.h $(INSTALL_DIR)/core/
+	@install -m 644 include/core/clipboard.h $(INSTALL_DIR)/core/
+	@install -m 644 include/core/help.h $(INSTALL_DIR)/core/
+	@install -m 644 include/core/theme_loader.h $(INSTALL_DIR)/core/
+	@install -m 644 include/tmlcs_tui.h $(INSTALL_DIR)/
 	@install -m 644 include/widget/text_input.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/textarea.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/button.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/label.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/checkbox.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/list.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/progress.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/context_menu.h $(INSTALL_DIR)/widget/
 	@install -m 644 tmlcs-tui.pc $(PREFIX)/lib/pkgconfig/
+	@install -m 755 $(TARGET) $(PREFIX)/bin/
 	@echo "Installation complete."
 	@echo "  Headers: $(INSTALL_DIR)/"
+	@echo "  Binary:  $(PREFIX)/bin/$(TARGET)"
 	@echo "  pkg-config: $(PREFIX)/lib/pkgconfig/tmlcs-tui.pc"
 
 uninstall:
 	@echo "Uninstalling tmlcs-tui from $(PREFIX)..."
 	@rm -rf $(INSTALL_DIR)
 	@rm -f $(PREFIX)/lib/pkgconfig/tmlcs-tui.pc
+	@rm -f $(PREFIX)/bin/$(TARGET)
 	@echo "Uninstallation complete."

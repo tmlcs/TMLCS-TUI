@@ -29,6 +29,8 @@ typedef struct TuiTextInput {
     unsigned int fg_normal;
     unsigned int bg_focused;
     unsigned int fg_cursor;
+
+    int _type_id;
 } TuiTextInput;
 
 /**
@@ -103,5 +105,34 @@ bool tui_text_input_is_focused(const TuiTextInput* ti);
 bool tui_text_input_copy(TuiTextInput* ti);
 bool tui_text_input_paste(TuiTextInput* ti);
 bool tui_text_input_cut(TuiTextInput* ti);
+
+/**
+ * @brief Handle a mouse event on the text input.
+ *        Click sets cursor position within the buffer.
+ * @param ti Text input instance, or NULL.
+ * @param key Notcurses key code (NCKEY_BUTTON1, etc.).
+ * @param ni Input details (event type, coordinates).
+ * @return true if the event was consumed.
+ */
+bool tui_text_input_handle_mouse(TuiTextInput* ti, uint32_t key, const struct ncinput* ni);
+
+/**
+ * @brief Set focus state and re-render.
+ * @param ti Text input instance, or NULL.
+ * @param focused Focus state.
+ */
+void tui_text_input_set_focused(TuiTextInput* ti, bool focused);
+
+/**
+ * @brief Ensure the text input VTable is registered with the widget system.
+ *        Called automatically during widget creation.
+ */
+void tui_text_input_ensure_registered(void);
+
+/**
+ * @brief Get the registered type_id for the text input widget type.
+ * @return Registered type_id (>= 0).
+ */
+int tui_text_input_get_type_id(void);
 
 #endif // WIDGET_TEXT_INPUT_H

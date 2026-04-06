@@ -1,8 +1,15 @@
 #include "widget/textarea.h"
 #include "core/theme.h"
+#include "core/widget.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+/* Forward declarations */
+void tui_textarea_ensure_registered(void);
+int tui_textarea_get_type_id(void);
+
+static int s_textarea_type_id = -1;
 
 TuiTextArea* tui_textarea_create(struct ncplane* parent, int y, int x, int width, int height) {
     if (!parent || height < 2 || width < 4) return NULL;
@@ -28,6 +35,9 @@ TuiTextArea* tui_textarea_create(struct ncplane* parent, int y, int x, int width
     ta->bg_focused = THEME_BG_TEXT_FOC;
     ta->fg_text = THEME_FG_DEFAULT;
     ta->fg_cursor = THEME_FG_CURSOR;
+
+    tui_textarea_ensure_registered();
+    ta->_type_id = s_textarea_type_id;
 
     tui_textarea_render(ta);
     return ta;
@@ -229,4 +239,40 @@ void tui_textarea_render(TuiTextArea* ta) {
             }
         }
     }
+}
+
+/* === VTable Implementation === */
+
+static bool v_textarea_handle_key(void* widget, uint32_t key, const struct ncinput* ni) {
+    TuiTextArea* ta = (TuiTextArea*)widget;
+    return tui_textarea_handle_key(ta, key, ni);
+}
+
+static bool v_textarea_handle_mouse(void* widget, uint32_t key, const struct ncinput* ni) {
+    (void)widget; (void)key; (void)ni;
+    return false;
+}
+
+static void v_textarea_render(void* widget) {
+    tui_textarea_render((TuiTextArea*)widget);
+}
+
+static bool v_textarea_is_focusable(void* widget) { (void)widget; return true; }
+
+static const TuiWidgetIface s_textarea_iface = {
+    .handle_key = v_textarea_handle_key,
+    .handle_mouse = v_textarea_handle_mouse,
+    .render = v_textarea_render,
+    .is_focusable = v_textarea_is_focusable,
+};
+
+void tui_textarea_ensure_registered(void) {
+    if (s_textarea_type_id < 0) {
+        s_textarea_type_id = tui_widget_register(&s_textarea_iface);
+    }
+}
+
+int tui_textarea_get_type_id(void) {
+    tui_textarea_ensure_registered();
+    return s_textarea_type_id;
 }

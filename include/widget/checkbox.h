@@ -21,6 +21,7 @@ typedef struct TuiCheckbox {
     unsigned fg_label;
     unsigned bg_normal;
     unsigned bg_focused;
+    int _type_id;
 } TuiCheckbox;
 
 /**
@@ -79,5 +80,14 @@ void tui_checkbox_render(TuiCheckbox* cb);
  * @param focused Focus state.
  */
 void tui_checkbox_set_focused(TuiCheckbox* cb, bool focused);
+
+/**
+ * @brief Handle a mouse event.
+ * @param cb Checkbox.
+ * @param key Notcurses key code (NCKEY_BUTTON1, etc.).
+ * @param ni Input details.
+ * @return true if consumed.
+ */
+bool tui_checkbox_handle_mouse(TuiCheckbox* cb, uint32_t key, const struct ncinput* ni);
 
 #endif /* WIDGET_CHECKBOX_H */
