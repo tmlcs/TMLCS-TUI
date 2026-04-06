@@ -196,8 +196,8 @@ $(BUILD_DIR)/test_text_input_runner: tests/test_text_input.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_text_input.c src/widget/text_input.c src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c tests/nc_stubs.c -Iinclude -g -lpthread
 
-# Widgets tests: all 6 new widgets + logger + stubs + math + widget.c for VTable
-WIDGET_SRCS = src/widget/label.c src/widget/button.c src/widget/progress.c src/widget/list.c src/widget/textarea.c src/widget/checkbox.c src/widget/context_menu.c
+# Widgets tests: all 15 widgets + logger + stubs + math + widget.c for VTable
+WIDGET_SRCS = src/widget/label.c src/widget/button.c src/widget/progress.c src/widget/list.c src/widget/textarea.c src/widget/checkbox.c src/widget/context_menu.c src/widget/slider.c src/widget/radio_group.c src/widget/spinner.c src/widget/tab_container.c src/widget/dropdown.c src/widget/dialog.c src/widget/table.c src/widget/tree.c src/widget/file_picker.c
 
 $(BUILD_DIR)/test_widgets_runner: tests/test_widgets.c
 	@mkdir -p $(dir $@)
@@ -209,11 +209,50 @@ $(BUILD_DIR)/test_context_menu_runner: tests/test_context_menu.c
 	$(CC) $(CFLAGS) -o $@ tests/test_context_menu.c src/widget/context_menu.c src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread
 
 # Layout tests: layout.c + all widget sources + logger + stubs
-LAYOUT_WIDGET_SRCS = src/widget/label.c src/widget/button.c src/widget/progress.c src/widget/list.c src/widget/textarea.c src/widget/checkbox.c src/widget/context_menu.c src/widget/text_input.c
+LAYOUT_WIDGET_SRCS = src/widget/label.c src/widget/button.c src/widget/progress.c src/widget/list.c src/widget/textarea.c src/widget/checkbox.c src/widget/context_menu.c src/widget/text_input.c src/widget/slider.c src/widget/radio_group.c src/widget/spinner.c src/widget/tab_container.c src/widget/dropdown.c src/widget/dialog.c src/widget/table.c src/widget/tree.c src/widget/file_picker.c
 
 $(BUILD_DIR)/test_layout_runner: tests/test_layout.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_layout.c src/core/layout.c $(LAYOUT_WIDGET_SRCS) src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c tests/nc_stubs.c -Iinclude -g -lpthread -lm
+
+# Phase 4 Widget tests
+NEW_WIDGET_CORE_SRCS = src/widget/slider.c src/widget/radio_group.c src/widget/spinner.c src/widget/tab_container.c src/widget/dropdown.c src/widget/dialog.c src/widget/table.c src/widget/tree.c src/widget/file_picker.c src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c
+
+$(BUILD_DIR)/test_slider_runner: tests/test_slider.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_slider.c src/widget/slider.c src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c tests/nc_stubs.c -Iinclude -g -lpthread -lm
+
+$(BUILD_DIR)/test_radio_group_runner: tests/test_radio_group.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_radio_group.c src/widget/radio_group.c src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c tests/nc_stubs.c -Iinclude -g -lpthread
+
+$(BUILD_DIR)/test_spinner_runner: tests/test_spinner.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_spinner.c src/widget/spinner.c src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread
+
+$(BUILD_DIR)/test_tab_container_runner: tests/test_tab_container.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_tab_container.c src/widget/tab_container.c src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread
+
+$(BUILD_DIR)/test_dropdown_runner: tests/test_dropdown.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_dropdown.c src/widget/dropdown.c src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread
+
+$(BUILD_DIR)/test_dialog_runner: tests/test_dialog.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_dialog.c src/widget/dialog.c src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread
+
+$(BUILD_DIR)/test_table_runner: tests/test_table.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_table.c src/widget/table.c src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread
+
+$(BUILD_DIR)/test_tree_runner: tests/test_tree.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_tree.c src/widget/tree.c src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread
+
+$(BUILD_DIR)/test_file_picker_runner: tests/test_file_picker.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_file_picker.c src/widget/file_picker.c src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread
 
 # Logger tests don't need stubs (pure C, no notcurses)
 $(BUILD_DIR)/test_logger_runner: tests/test_logger.c $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o,$(OBJS))
@@ -399,6 +438,15 @@ install: all
 	@install -m 644 include/widget/list.h $(INSTALL_DIR)/widget/
 	@install -m 644 include/widget/progress.h $(INSTALL_DIR)/widget/
 	@install -m 644 include/widget/context_menu.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/slider.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/radio_group.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/spinner.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/tab_container.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/dropdown.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/dialog.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/table.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/tree.h $(INSTALL_DIR)/widget/
+	@install -m 644 include/widget/file_picker.h $(INSTALL_DIR)/widget/
 	@install -m 644 tmlcs-tui.pc $(PREFIX)/lib/pkgconfig/
 	@install -m 755 $(TARGET) $(PREFIX)/bin/
 	@echo "Installation complete."
