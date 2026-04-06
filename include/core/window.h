@@ -95,4 +95,18 @@ void* tui_window_get_user_data(const TuiWindow* win);
  */
 void tui_window_set_user_data(TuiWindow* win, void* data);
 
+/**
+ * @brief Attach a layout engine to this window for automatic widget positioning.
+ * @param win Window instance, or NULL.
+ * @param layout Layout to attach. Must not be NULL.
+ */
+void tui_window_attach_layout(TuiWindow* win, TuiLayout* layout);
+
+/**
+ * @brief Get the layout attached to this window, if any.
+ * @param win Window instance, or NULL.
+ * @return The attached TuiLayout, or NULL if none.
+ */
+TuiLayout* tui_window_get_layout(const TuiWindow* win);
+
 #endif

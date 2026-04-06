@@ -2,6 +2,7 @@
 #include "core/workspace.h"
 #include "core/tab.h"
 #include "core/window.h"
+#include "core/layout.h"
 #include "core/theme.h"
 #include "core/help.h"
 #include "core/types_private.h"
@@ -264,6 +265,23 @@ bool tui_manager_process_mouse(TuiManager* mgr, uint32_t key, const struct ncinp
 bool tui_manager_process_keyboard(TuiManager* mgr, uint32_t key, const struct ncinput* ni) {
     /* For keyboard, evtype is NCTYPE_UNKNOWN. Only discard RELEASE (exclusive to mouse). */
     if (ni->evtype == NCTYPE_RELEASE) return false;
+
+    /* Terminal resize event: mark all layouts dirty for recomputation */
+    if (key == NCKEY_RESIZE) {
+        tui_manager_mark_full_redraw(mgr);
+        if (mgr->_active_workspace_index >= 0) {
+            TuiWorkspace* ws = mgr->_workspaces[mgr->_active_workspace_index];
+            if (ws && ws->_active_tab_index >= 0) {
+                TuiTab* tab = ws->_tabs[ws->_active_tab_index];
+                for (int i = 0; i < tab->_window_count; i++) {
+                    if (tab->_windows[i]->_attached_layout) {
+                        tui_layout_mark_dirty(tab->_windows[i]->_attached_layout);
+                    }
+                }
+            }
+        }
+        return true;
+    }
 
     /* Help screen toggle */
     if (key == 0x1003F || key == '?') {  /* 0x1003F = NCKEY_F1 */

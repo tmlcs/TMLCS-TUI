@@ -147,11 +147,19 @@ static void v_checkbox_render(void* widget) {
 
 static bool v_checkbox_is_focusable(void* widget) { (void)widget; return true; }
 
+static void v_checkbox_preferred_size(void* widget, int max_h, int max_w, int* out_h, int* out_w) {
+    (void)max_h; (void)max_w;
+    TuiCheckbox* c = (TuiCheckbox*)widget;
+    if (out_h) *out_h = 1;
+    if (out_w) *out_w = c->label ? (int)strlen(c->label) + 4 : 6;
+}
+
 static const TuiWidgetIface s_checkbox_iface = {
     .handle_key = v_checkbox_handle_key,
     .handle_mouse = v_checkbox_handle_mouse,
     .render = v_checkbox_render,
     .is_focusable = v_checkbox_is_focusable,
+    .preferred_size = v_checkbox_preferred_size,
 };
 
 void tui_checkbox_ensure_registered(void) {

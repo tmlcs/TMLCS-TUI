@@ -1,4 +1,5 @@
 #include "core/window.h"
+#include "core/layout.h"
 #include "core/logger.h"
 #include "core/manager.h"
 #include "core/tab.h"
@@ -134,4 +135,18 @@ void* tui_window_get_widget_at(TuiWindow* win, int local_y, int local_x, int* ou
         }
     }
     return NULL;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Layout attachment                                                  */
+/* ------------------------------------------------------------------ */
+
+void tui_window_attach_layout(TuiWindow* win, TuiLayout* layout) {
+    if (!win) return;
+    win->_attached_layout = layout;
+    tui_window_mark_dirty(win);
+}
+
+TuiLayout* tui_window_get_layout(const TuiWindow* win) {
+    return win ? win->_attached_layout : NULL;
 }

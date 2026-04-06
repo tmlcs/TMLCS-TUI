@@ -86,11 +86,19 @@ static void v_label_render(void* widget) {
 
 static bool v_label_is_focusable(void* widget) { (void)widget; return false; }
 
+static void v_label_preferred_size(void* widget, int max_h, int max_w, int* out_h, int* out_w) {
+    (void)max_h; (void)max_w;
+    TuiLabel* lbl = (TuiLabel*)widget;
+    if (out_h) *out_h = 1;
+    if (out_w) *out_w = lbl->text ? (int)strlen(lbl->text) + 2 : 4;
+}
+
 static const TuiWidgetIface s_label_iface = {
     .handle_key = v_label_handle_key,
     .handle_mouse = v_label_handle_mouse,
     .render = v_label_render,
     .is_focusable = v_label_is_focusable,
+    .preferred_size = v_label_preferred_size,
 };
 
 void tui_label_ensure_registered(void) {

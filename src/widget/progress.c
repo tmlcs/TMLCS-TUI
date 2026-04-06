@@ -110,11 +110,18 @@ static void v_progress_render(void* widget) {
 
 static bool v_progress_is_focusable(void* widget) { (void)widget; return false; }
 
+static void v_progress_preferred_size(void* widget, int max_h, int max_w, int* out_h, int* out_w) {
+    (void)widget; (void)max_h; (void)max_w;
+    if (out_h) *out_h = 1;
+    if (out_w) *out_w = 10;  /* minimum width */
+}
+
 static const TuiWidgetIface s_progress_iface = {
     .handle_key = v_progress_handle_key,
     .handle_mouse = v_progress_handle_mouse,
     .render = v_progress_render,
     .is_focusable = v_progress_is_focusable,
+    .preferred_size = v_progress_preferred_size,
 };
 
 void tui_progress_ensure_registered(void) {

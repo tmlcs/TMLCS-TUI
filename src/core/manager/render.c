@@ -2,6 +2,7 @@
 #include "core/workspace.h"
 #include "core/tab.h"
 #include "core/window.h"
+#include "core/layout.h"
 #include "core/theme.h"
 #include "core/types_private.h"
 #include <string.h>
@@ -157,6 +158,17 @@ void tui_manager_render(TuiManager* manager) {
 
                 /* Determine if needs redraw before clearing the flag */
                 bool needs_render = win->_needs_redraw || win->_focused != was_focused;
+
+                /* Compute attached layout if present */
+                if (win->_attached_layout) {
+                    unsigned w_dimy, w_dimx;
+                    ncplane_dim_yx(win->_plane, &w_dimy, &w_dimx);
+                    tui_layout_compute(win->_attached_layout, (int)w_dimy, (int)w_dimx);
+                    tui_layout_render(win->_attached_layout);
+                    /* Layout rendered widgets; clear the window's redraw flag */
+                    win->_needs_redraw = false;
+                    continue;
+                }
 
                 /* Call render_cb only if the window is marked dirty or focus changed */
                 if (needs_render) {

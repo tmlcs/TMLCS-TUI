@@ -219,11 +219,19 @@ static void v_list_render(void* widget) {
 
 static bool v_list_is_focusable(void* widget) { (void)widget; return true; }
 
+static void v_list_preferred_size(void* widget, int max_h, int max_w, int* out_h, int* out_w) {
+    (void)max_h; (void)max_w;
+    TuiList* list = (TuiList*)widget;
+    if (out_h) *out_h = list->count > 0 ? list->count : 1;
+    if (out_w) *out_w = -1;  /* fill available width */
+}
+
 static const TuiWidgetIface s_list_iface = {
     .handle_key = v_list_handle_key,
     .handle_mouse = v_list_handle_mouse,
     .render = v_list_render,
     .is_focusable = v_list_is_focusable,
+    .preferred_size = v_list_preferred_size,
 };
 
 void tui_list_ensure_registered(void) {

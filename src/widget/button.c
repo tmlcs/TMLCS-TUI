@@ -150,11 +150,19 @@ static void v_button_render(void* widget) {
 
 static bool v_button_is_focusable(void* widget) { (void)widget; return true; }
 
+static void v_button_preferred_size(void* widget, int max_h, int max_w, int* out_h, int* out_w) {
+    (void)max_h; (void)max_w;
+    TuiButton* btn = (TuiButton*)widget;
+    if (out_h) *out_h = 1;
+    if (out_w) *out_w = btn->label ? (int)strlen(btn->label) + 4 : 6;
+}
+
 static const TuiWidgetIface s_button_iface = {
     .handle_key = v_button_handle_key,
     .handle_mouse = v_button_handle_mouse,
     .render = v_button_render,
     .is_focusable = v_button_is_focusable,
+    .preferred_size = v_button_preferred_size,
 };
 
 void tui_button_ensure_registered(void) {

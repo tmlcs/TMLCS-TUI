@@ -167,11 +167,25 @@ static bool v_menu_is_focusable(void* widget) {
     return menu && menu->visible;
 }
 
+static void v_menu_preferred_size(void* widget, int max_h, int max_w, int* out_h, int* out_w) {
+    (void)max_h; (void)max_w;
+    TuiContextMenu* menu = (TuiContextMenu*)widget;
+    if (out_h) *out_h = menu->count > 0 ? menu->count : 1;
+    /* Compute max item label width + 2 for padding */
+    int max_w_item = 2;
+    for (int i = 0; i < menu->count; i++) {
+        int w = (int)strlen(menu->items[i]);
+        if (w + 2 > max_w_item) max_w_item = w + 2;
+    }
+    if (out_w) *out_w = max_w_item;
+}
+
 static const TuiWidgetIface s_menu_iface = {
     .handle_key = v_menu_handle_key,
     .handle_mouse = v_menu_handle_mouse,
     .render = v_menu_render,
     .is_focusable = v_menu_is_focusable,
+    .preferred_size = v_menu_preferred_size,
 };
 
 void tui_menu_ensure_registered(void) {

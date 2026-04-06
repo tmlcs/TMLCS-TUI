@@ -339,11 +339,18 @@ static void v_text_input_render(void* widget) {
 
 static bool v_text_input_is_focusable(void* widget) { (void)widget; return true; }
 
+static void v_text_input_preferred_size(void* widget, int max_h, int max_w, int* out_h, int* out_w) {
+    (void)widget; (void)max_h; (void)max_w;
+    if (out_h) *out_h = 1;
+    if (out_w) *out_w = -1;  /* fill available width */
+}
+
 static const TuiWidgetIface s_text_input_iface = {
     .handle_key = v_text_input_handle_key,
     .handle_mouse = v_text_input_handle_mouse,
     .render = v_text_input_render,
     .is_focusable = v_text_input_is_focusable,
+    .preferred_size = v_text_input_preferred_size,
 };
 
 void tui_text_input_ensure_registered(void) {

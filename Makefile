@@ -141,7 +141,7 @@ $(BUILD_DIR)/test_%_runner: tests/test_%.c $(filter-out $(BUILD_DIR)/main.o $(BU
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Tab and workspace tests: compile core sources directly with stubs (no notcurses link)
-TAB_WS_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
+TAB_WS_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/layout.c src/core/widget.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
 
 # Widget sources needed when manager/input.c references widget mouse handlers
 WIDGET_MOUSE_SRCS = src/widget/button.c src/widget/checkbox.c src/widget/list.c src/widget/context_menu.c src/widget/textarea.c src/widget/text_input.c src/core/widget.c
@@ -164,28 +164,28 @@ $(BUILD_DIR)/test_manager_state_runner: tests/test_manager_state.c
 	$(CC) $(CFLAGS) -o $@ tests/test_manager_state.c $(TAB_WS_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
 
 # Manager input tests: core sources (including manager/input.c) + stubs
-MANAGER_INPUT_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/input.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
+MANAGER_INPUT_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/layout.c src/core/manager/input.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
 
 $(BUILD_DIR)/test_manager_input_runner: tests/test_manager_input.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_manager_input.c $(MANAGER_INPUT_CORE_SRCS) $(WIDGET_MOUSE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
 
 # Manager render tests: core sources (including manager/render.c) + stubs
-MANAGER_RENDER_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/render.c src/core/manager/input.c src/core/manager/state.c src/core/manager/utils.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
+MANAGER_RENDER_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/layout.c src/core/manager/render.c src/core/manager/input.c src/core/manager/state.c src/core/manager/utils.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
 
 $(BUILD_DIR)/test_manager_render_runner: tests/test_manager_render.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_manager_render.c $(MANAGER_RENDER_CORE_SRCS) $(WIDGET_MOUSE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
 
 # Manager utils tests: core sources + stubs
-MANAGER_UTILS_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
+MANAGER_UTILS_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/layout.c src/core/widget.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
 
 $(BUILD_DIR)/test_manager_utils_runner: tests/test_manager_utils.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_manager_utils.c $(MANAGER_UTILS_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
 
 # Integration tests: full cross-module lifecycle with widget + manager input/render
-MANAGER_FULL_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/input.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
+MANAGER_FULL_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/layout.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/input.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
 
 $(BUILD_DIR)/test_integration_runner: tests/test_integration.c
 	@mkdir -p $(dir $@)
@@ -207,6 +207,13 @@ $(BUILD_DIR)/test_widgets_runner: tests/test_widgets.c
 $(BUILD_DIR)/test_context_menu_runner: tests/test_context_menu.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_context_menu.c src/widget/context_menu.c src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread
+
+# Layout tests: layout.c + all widget sources + logger + stubs
+LAYOUT_WIDGET_SRCS = src/widget/label.c src/widget/button.c src/widget/progress.c src/widget/list.c src/widget/textarea.c src/widget/checkbox.c src/widget/context_menu.c src/widget/text_input.c
+
+$(BUILD_DIR)/test_layout_runner: tests/test_layout.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_layout.c src/core/layout.c $(LAYOUT_WIDGET_SRCS) src/core/widget.c src/core/logger.c src/core/clipboard.c tests/nc_stubs.c -Iinclude -g -lpthread -lm
 
 # Logger tests don't need stubs (pure C, no notcurses)
 $(BUILD_DIR)/test_logger_runner: tests/test_logger.c $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o,$(OBJS))

@@ -259,11 +259,18 @@ static void v_textarea_render(void* widget) {
 
 static bool v_textarea_is_focusable(void* widget) { (void)widget; return true; }
 
+static void v_textarea_preferred_size(void* widget, int max_h, int max_w, int* out_h, int* out_w) {
+    (void)widget; (void)max_h; (void)max_w;
+    if (out_h) *out_h = -1;  /* fill available height */
+    if (out_w) *out_w = -1;  /* fill available width */
+}
+
 static const TuiWidgetIface s_textarea_iface = {
     .handle_key = v_textarea_handle_key,
     .handle_mouse = v_textarea_handle_mouse,
     .render = v_textarea_render,
     .is_focusable = v_textarea_is_focusable,
+    .preferred_size = v_textarea_preferred_size,
 };
 
 void tui_textarea_ensure_registered(void) {
