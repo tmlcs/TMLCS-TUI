@@ -25,3 +25,9 @@ coverage/
 
 # Logs
 *.log
+build/
+mi_tui
+*.o
+*.gcda
+*.gcno
+coverage/
