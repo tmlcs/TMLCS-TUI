@@ -111,3 +111,27 @@ void tui_menu_render(TuiContextMenu* menu) {
         ncplane_putstr_yx(menu->plane, i, 1, menu->items[i]);
     }
 }
+
+bool tui_menu_handle_mouse(TuiContextMenu* menu, uint32_t key, const struct ncinput* ni) {
+    if (!menu || !ni || !menu->plane || !menu->visible || ni->evtype == NCTYPE_RELEASE) return false;
+    if (key != NCKEY_BUTTON1) return false;
+
+    /* Check if click is within this menu's plane */
+    int plane_abs_y, plane_abs_x;
+    ncplane_abs_yx(menu->plane, &plane_abs_y, &plane_abs_x);
+    unsigned rows, cols;
+    ncplane_dim_yx(menu->plane, &rows, &cols);
+
+    int local_y = ni->y - plane_abs_y;
+    int local_x = ni->x - plane_abs_x;
+
+    if (local_y < 0 || local_y >= (int)rows || local_x < 0 || local_x >= (int)cols) return false;
+
+    /* Select and activate clicked item */
+    if (local_y >= 0 && local_y < menu->count) {
+        menu->selected = local_y;
+        if (menu->callbacks[menu->selected]) menu->callbacks[menu->selected](menu->userdatas[menu->selected]);
+    }
+    tui_menu_hide(menu);
+    return true;
+}

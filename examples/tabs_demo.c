@@ -8,19 +8,19 @@
 #include "tmlcs_tui.h"
 
 static void render_tab_info(TuiWindow* win) {
-    if (!win || !win->plane) return;
+    if (!win || !win->_plane) return;
     unsigned dimy, dimx;
-    ncplane_dim_yx(win->plane, &dimy, &dimx);
+    ncplane_dim_yx(win->_plane, &dimy, &dimx);
     uint64_t bg = 0;
     ncchannels_set_fg_rgb(&bg, THEME_FG_DEFAULT);
     ncchannels_set_bg_rgb(&bg, THEME_BG_WINDOW);
     ncchannels_set_bg_alpha(&bg, NCALPHA_OPAQUE);
-    ncplane_set_base(win->plane, " ", 0, bg);
-    ncplane_erase(win->plane);
-    ncplane_set_fg_rgb(win->plane, THEME_FG_DEFAULT);
-    ncplane_printf_yx(win->plane, 1, 1, "Window: %s", (char*)win->user_data);
-    ncplane_printf_yx(win->plane, 2, 1, "Press Left/Right to switch tabs");
-    ncplane_printf_yx(win->plane, 3, 1, "Press Alt+1/2 to switch workspaces");
+    ncplane_set_base(win->_plane, " ", 0, bg);
+    ncplane_erase(win->_plane);
+    ncplane_set_fg_rgb(win->_plane, THEME_FG_DEFAULT);
+    ncplane_printf_yx(win->_plane, 1, 1, "Window: %s", (char*)win->_user_data);
+    ncplane_printf_yx(win->_plane, 2, 1, "Press Left/Right to switch tabs");
+    ncplane_printf_yx(win->_plane, 3, 1, "Press Alt+1/2 to switch workspaces");
 }
 
 int main(void) {
@@ -59,7 +59,7 @@ int main(void) {
     tui_manager_set_active_workspace(mgr, 0);
 
     struct ncinput ni;
-    while (mgr->running) {
+    while (mgr->_running) {
         tui_manager_render(mgr);
         uint32_t key = notcurses_get_nblock(nc, &ni);
         if (key != (uint32_t)-1) {

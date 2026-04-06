@@ -118,6 +118,22 @@ bool tui_text_input_handle_key(TuiTextInput* ti, uint32_t key, const struct ncin
         return true;
     }
 
+    /* Ctrl+Left: jump word left */
+    if (ni->ctrl && key == NCKEY_LEFT) {
+        while (ti->cursor > 0 && ti->buffer[ti->cursor - 1] == ' ') ti->cursor--;
+        while (ti->cursor > 0 && ti->buffer[ti->cursor - 1] != ' ') ti->cursor--;
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Ctrl+Right: jump word right */
+    if (ni->ctrl && key == NCKEY_RIGHT) {
+        while (ti->cursor < ti->len && ti->buffer[ti->cursor] == ' ') ti->cursor++;
+        while (ti->cursor < ti->len && ti->buffer[ti->cursor] != ' ') ti->cursor++;
+        tui_text_input_render(ti);
+        return true;
+    }
+
     if (key == NCKEY_LEFT) {
         if (ti->cursor > 0) ti->cursor--;
         tui_text_input_render(ti);
@@ -140,22 +156,6 @@ bool tui_text_input_handle_key(TuiTextInput* ti, uint32_t key, const struct ncin
     /* End / Ctrl+E: move cursor to end */
     if (key == NCKEY_END || (ni->ctrl && (key == 'e' || key == 'E'))) {
         ti->cursor = ti->len;
-        tui_text_input_render(ti);
-        return true;
-    }
-
-    /* Ctrl+Left: jump word left */
-    if (ni->ctrl && key == NCKEY_LEFT) {
-        while (ti->cursor > 0 && ti->buffer[ti->cursor - 1] == ' ') ti->cursor--;
-        while (ti->cursor > 0 && ti->buffer[ti->cursor - 1] != ' ') ti->cursor--;
-        tui_text_input_render(ti);
-        return true;
-    }
-
-    /* Ctrl+Right: jump word right */
-    if (ni->ctrl && key == NCKEY_RIGHT) {
-        while (ti->cursor < ti->len && ti->buffer[ti->cursor] == ' ') ti->cursor++;
-        while (ti->cursor < ti->len && ti->buffer[ti->cursor] != ' ') ti->cursor++;
         tui_text_input_render(ti);
         return true;
     }
@@ -279,4 +279,34 @@ void tui_text_input_render(TuiTextInput* ti) {
             ncplane_putchar_yx(ti->plane, 0, 1 + screen_cursor, ' ');
         }
     }
+}
+
+bool tui_text_input_handle_mouse(TuiTextInput* ti, uint32_t key, const struct ncinput* ni) {
+    if (!ti || !ni || !ti->plane || ni->evtype == NCTYPE_RELEASE) return false;
+    if (key != NCKEY_BUTTON1) return false;
+
+    int plane_abs_y, plane_abs_x;
+    ncplane_abs_yx(ti->plane, &plane_abs_y, &plane_abs_x);
+    unsigned rows, cols;
+    ncplane_dim_yx(ti->plane, &rows, &cols);
+
+    int local_y = ni->y - plane_abs_y;
+    int local_x = ni->x - plane_abs_x;
+
+    if (local_y < 0 || local_y >= (int)rows || local_x < 0 || local_x >= (int)cols) return false;
+
+    /* Calculate cursor position from click. Text starts at x=1 (after "[" border). */
+    int buf_pos = local_x - 1 + ti->scroll_off;
+    if (buf_pos < 0) buf_pos = 0;
+    if (buf_pos > ti->len) buf_pos = ti->len;
+    ti->cursor = buf_pos;
+    ti->focused = true;
+    tui_text_input_render(ti);
+    return true;
+}
+
+void tui_text_input_set_focused(TuiTextInput* ti, bool focused) {
+    if (!ti) return;
+    ti->focused = focused;
+    tui_text_input_render(ti);
 }

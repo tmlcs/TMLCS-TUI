@@ -166,3 +166,26 @@ void tui_list_render(TuiList* list) {
         }
     }
 }
+
+bool tui_list_handle_mouse(TuiList* list, uint32_t key, const struct ncinput* ni) {
+    if (!list || !ni || !list->plane || ni->evtype == NCTYPE_RELEASE) return false;
+    if (key != NCKEY_BUTTON1) return false;
+
+    /* Check if click is within this list's plane */
+    int plane_abs_y, plane_abs_x;
+    ncplane_abs_yx(list->plane, &plane_abs_y, &plane_abs_x);
+    unsigned rows, cols;
+    ncplane_dim_yx(list->plane, &rows, &cols);
+
+    int local_y = ni->y - plane_abs_y;
+    int local_x = ni->x - plane_abs_x;
+
+    if (local_y < 0 || local_y >= (int)rows || local_x < 0 || local_x >= (int)cols) return false;
+
+    /* Calculate which item was clicked */
+    int clicked_item = list->scroll_off + local_y;
+    if (clicked_item >= 0 && clicked_item < list->count) {
+        tui_list_set_selected(list, clicked_item);
+    }
+    return true;
+}

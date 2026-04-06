@@ -60,16 +60,20 @@ void tui_textarea_set_focused(TuiTextArea* ta, bool focused) {
     tui_textarea_render(ta);
 }
 
-static char s_textarea_buf[TEXTAREA_MAX_LINES * TEXTAREA_MAX_LINE_LEN];
-
-const char* tui_textarea_get(TuiTextArea* ta) {
-    if (!ta) return NULL;
-    s_textarea_buf[0] = '\0';
-    for (int i = 0; i < ta->line_count; i++) {
-        if (i > 0) strncat(s_textarea_buf, "\n", sizeof(s_textarea_buf) - strlen(s_textarea_buf) - 1);
-        strncat(s_textarea_buf, ta->lines[i], sizeof(s_textarea_buf) - strlen(s_textarea_buf) - 1);
+int tui_textarea_get(TuiTextArea* ta, char* buf, int max_len) {
+    if (!ta || !buf || max_len <= 0) return -1;
+    char* p = buf;
+    size_t remaining = (size_t)max_len - 1;
+    for (int i = 0; i < ta->line_count && remaining > 0; i++) {
+        if (i > 0) { *p++ = '\n'; remaining--; }
+        size_t line_len = strlen(ta->lines[i]);
+        if (line_len > remaining) line_len = remaining;
+        memcpy(p, ta->lines[i], line_len);
+        p += line_len;
+        remaining -= line_len;
     }
-    return s_textarea_buf;
+    *p = '\0';
+    return (int)(p - buf);
 }
 
 bool tui_textarea_handle_key(TuiTextArea* ta, uint32_t key, const struct ncinput* ni) {

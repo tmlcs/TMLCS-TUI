@@ -383,6 +383,126 @@ void test_checkbox_set_state(void) {
 }
 
 /* ================================================================== */
+/*  MOUSE HANDLING TESTS                                                */
+/* ================================================================== */
+
+void stub_set_default_plane_position(int y, int x);
+
+void test_button_handle_mouse_click(void) {
+    reset_cb();
+    TuiButton* btn = tui_button_create(dummy_parent(), 0, 0, 12, "OK", test_button_cb, NULL);
+    stub_set_default_plane_position(0, 0);
+    struct ncinput ni = make_ncinput(NCKEY_BUTTON1, 0x02 /* NCTYPE_PRESS */);
+    ni.y = 0; ni.x = 5;
+    bool r = tui_button_handle_mouse(btn, NCKEY_BUTTON1, &ni);
+    TEST_ASSERT_TRUE(r);
+    TEST_ASSERT_TRUE(g_cb_called);
+    tui_button_destroy(btn);
+}
+
+void test_button_handle_mouse_outside(void) {
+    TuiButton* btn = tui_button_create(dummy_parent(), 0, 0, 12, "OK", NULL, NULL);
+    stub_set_default_plane_position(0, 0);
+    struct ncinput ni = make_ncinput(NCKEY_BUTTON1, 0x02);
+    ni.y = 99; ni.x = 99;
+    bool r = tui_button_handle_mouse(btn, NCKEY_BUTTON1, &ni);
+    TEST_ASSERT_FALSE(r);
+    tui_button_destroy(btn);
+}
+
+void test_checkbox_handle_mouse_toggle(void) {
+    reset_cb();
+    TuiCheckbox* cb = tui_checkbox_create(dummy_parent(), 0, 0, "Enable", false, test_checkbox_cb, NULL);
+    TEST_ASSERT_FALSE(tui_checkbox_get_state(cb));
+    stub_set_default_plane_position(0, 0);
+    struct ncinput ni = make_ncinput(NCKEY_BUTTON1, 0x02);
+    ni.y = 0; ni.x = 2;
+    bool r = tui_checkbox_handle_mouse(cb, NCKEY_BUTTON1, &ni);
+    TEST_ASSERT_TRUE(r);
+    TEST_ASSERT_TRUE(tui_checkbox_get_state(cb));
+    TEST_ASSERT_TRUE(g_cb_called);
+    tui_checkbox_destroy(cb);
+}
+
+void test_list_handle_mouse_select(void) {
+    TuiList* list = tui_list_create(dummy_parent(), 0, 0, 20, 5);
+    tui_list_add_item(list, "Alpha");
+    tui_list_add_item(list, "Beta");
+    tui_list_add_item(list, "Gamma");
+    TEST_ASSERT_EQUAL_INT(0, tui_list_get_selected(list));
+
+    stub_set_default_plane_position(0, 0);
+    struct ncinput ni = make_ncinput(NCKEY_BUTTON1, 0x02);
+    ni.y = 1; ni.x = 3;  /* Click on row 1 => item "Beta" (index 1) */
+    bool r = tui_list_handle_mouse(list, NCKEY_BUTTON1, &ni);
+    TEST_ASSERT_TRUE(r);
+    TEST_ASSERT_EQUAL_INT(1, tui_list_get_selected(list));
+    tui_list_destroy(list);
+}
+
+/* ================================================================== */
+/*  TEXTAREA GET TESTS                                                  */
+/* ================================================================== */
+
+void test_textarea_get_single_line(void) {
+    TuiTextArea* ta = tui_textarea_create(dummy_parent(), 0, 0, 40, 5);
+    /* Directly set line content (handle_key may not work with stubs) */
+    strncpy(ta->lines[0], "hello", TEXTAREA_MAX_LINE_LEN - 1);
+    ta->line_count = 1;
+    ta->lines[0][5] = '\0';
+
+    char buf[64];
+    int n = tui_textarea_get(ta, buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_INT(5, n);
+    TEST_ASSERT_EQUAL_STRING("hello", buf);
+    tui_textarea_destroy(ta);
+}
+
+void test_textarea_get_multi_line(void) {
+    TuiTextArea* ta = tui_textarea_create(dummy_parent(), 0, 0, 40, 5);
+    strncpy(ta->lines[0], "hi", TEXTAREA_MAX_LINE_LEN - 1);
+    strncpy(ta->lines[1], "bye", TEXTAREA_MAX_LINE_LEN - 1);
+    ta->line_count = 2;
+
+    char buf[64];
+    int n = tui_textarea_get(ta, buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_INT(6, n);  /* "hi\nbye" = 2 + 1 + 3 */
+    TEST_ASSERT_EQUAL_STRING("hi\nbye", buf);
+    tui_textarea_destroy(ta);
+}
+
+void test_textarea_get_empty(void) {
+    TuiTextArea* ta = tui_textarea_create(dummy_parent(), 0, 0, 40, 5);
+    char buf[64];
+    int n = tui_textarea_get(ta, buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_INT(0, n);
+    TEST_ASSERT_EQUAL_STRING("", buf);
+    tui_textarea_destroy(ta);
+}
+
+void test_textarea_get_buffer_overflow(void) {
+    TuiTextArea* ta = tui_textarea_create(dummy_parent(), 0, 0, 40, 5);
+    strncpy(ta->lines[0], "aaaaaaaaaa", TEXTAREA_MAX_LINE_LEN - 1);
+    ta->line_count = 1;
+
+    char small_buf[4];
+    int n = tui_textarea_get(ta, small_buf, sizeof(small_buf));
+    TEST_ASSERT_EQUAL_INT(3, n);  /* max_len-1 = 3 bytes written */
+    TEST_ASSERT_EQUAL_INT(0, small_buf[3]);  /* null terminated */
+    tui_textarea_destroy(ta);
+}
+
+void test_textarea_get_null_params(void) {
+    char buf[64];
+    TEST_ASSERT_EQUAL_INT(-1, tui_textarea_get(NULL, buf, sizeof(buf)));
+
+    TuiTextArea* ta = tui_textarea_create(dummy_parent(), 0, 0, 40, 5);
+    TEST_ASSERT_EQUAL_INT(-1, tui_textarea_get(ta, NULL, sizeof(buf)));
+    TEST_ASSERT_EQUAL_INT(-1, tui_textarea_get(ta, buf, 0));
+    tui_textarea_destroy(ta);
+}
+
+/* ================================================================== */
 /*  main                                                                */
 /* ================================================================== */
 
@@ -430,6 +550,19 @@ int main(void) {
     RUN_TEST(test_checkbox_get_state);
     RUN_TEST(test_checkbox_handle_key_space);
     RUN_TEST(test_checkbox_set_state);
+
+    /* Mouse handling tests */
+    RUN_TEST(test_button_handle_mouse_click);
+    RUN_TEST(test_button_handle_mouse_outside);
+    RUN_TEST(test_checkbox_handle_mouse_toggle);
+    RUN_TEST(test_list_handle_mouse_select);
+
+    /* TextArea get tests */
+    RUN_TEST(test_textarea_get_single_line);
+    RUN_TEST(test_textarea_get_multi_line);
+    RUN_TEST(test_textarea_get_empty);
+    RUN_TEST(test_textarea_get_buffer_overflow);
+    RUN_TEST(test_textarea_get_null_params);
 
     return UNITY_END();
 }

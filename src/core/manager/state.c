@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "core/theme.h"
 #include "core/theme_loader.h"
+#include "core/types_private.h"
 #include <stdatomic.h>
 #include <stdlib.h>
 
@@ -19,34 +20,44 @@ void tui_reset_id(int value) {
 TuiManager* tui_manager_create(struct notcurses* nc) {
     TuiManager* mgr = (TuiManager*)calloc(1, sizeof(TuiManager));
     if (!mgr) {
-        tui_log(LOG_ERROR, "OOM en tui_manager_create");
+        tui_log(LOG_ERROR, "OOM in tui_manager_create");
         return NULL;
     }
-    mgr->nc = nc;
-    mgr->stdplane = notcurses_stdplane(nc);
-    if (!mgr->stdplane) {
+    mgr->_nc = nc;
+    mgr->_stdplane = notcurses_stdplane(nc);
+    if (!mgr->_stdplane) {
         free(mgr);
-        tui_log(LOG_ERROR, "notcurses_stdplane devolvió NULL en tui_manager_create");
+        tui_log(LOG_ERROR, "notcurses_stdplane returned NULL in tui_manager_create");
         return NULL;
     }
-    mgr->workspace_capacity = 4;
-    mgr->workspaces = (TuiWorkspace**)calloc(mgr->workspace_capacity, sizeof(TuiWorkspace*));
-    if (!mgr->workspaces) {
+    mgr->_workspace_capacity = 4;
+    mgr->_workspaces = (TuiWorkspace**)calloc(mgr->_workspace_capacity, sizeof(TuiWorkspace*));
+    if (!mgr->_workspaces) {
         free(mgr);
-        tui_log(LOG_ERROR, "OOM en tui_manager_create (workspaces array)");
+        tui_log(LOG_ERROR, "OOM in tui_manager_create (workspaces array)");
         return NULL;
     }
-    mgr->active_workspace_index = -1;
-    mgr->running = true;
+    mgr->_active_workspace_index = -1;
+    mgr->_running = true;
+
+    /* Initialize dirty tracking state */
+    mgr->_toolbar_needs_redraw = false;
+    mgr->_tabs_needs_redraw = false;
+    mgr->_taskbar_needs_redraw = false;
+    mgr->_last_active_workspace = -1;
+    mgr->_last_active_tab = -1;
+    mgr->_last_active_window = -1;
+    mgr->_last_clock[0] = '\0';
+
     return mgr;
 }
 
 void tui_manager_destroy(TuiManager* manager) {
     if (!manager) return;
-    for (int i = 0; i < manager->workspace_count; i++) {
-        tui_workspace_destroy(manager->workspaces[i]);
+    for (int i = 0; i < manager->_workspace_count; i++) {
+        tui_workspace_destroy(manager->_workspaces[i]);
     }
-    free(manager->workspaces);
+    free(manager->_workspaces);
     free(manager);
 }
 
@@ -55,51 +66,65 @@ void tui_manager_add_workspace(TuiManager* manager, TuiWorkspace* ws) {
         tui_log(LOG_ERROR, "tui_manager_add_workspace: manager or ws is NULL");
         return;
     }
-    if (manager->workspace_count >= manager->workspace_capacity) {
-        manager->workspace_capacity *= 2;
-        TuiWorkspace** new_workspaces = (TuiWorkspace**)realloc(manager->workspaces, manager->workspace_capacity * sizeof(TuiWorkspace*));
+    if (manager->_workspace_count >= manager->_workspace_capacity) {
+        manager->_workspace_capacity *= 2;
+        TuiWorkspace** new_workspaces = (TuiWorkspace**)realloc(manager->_workspaces, manager->_workspace_capacity * sizeof(TuiWorkspace*));
         if (!new_workspaces) {
-            tui_log(LOG_ERROR, "OOM en tui_manager_add_workspace (realloc)");
-            return; // No agregamos el workspace
+            tui_log(LOG_ERROR, "OOM in tui_manager_add_workspace (realloc)");
+            return; /* Do not add the workspace */
         }
-        manager->workspaces = new_workspaces;
+        manager->_workspaces = new_workspaces;
     }
-    manager->workspaces[manager->workspace_count++] = ws;
-    if (manager->active_workspace_index == -1) {
-        tui_manager_set_active_workspace(manager, manager->workspace_count - 1);
+    manager->_workspaces[manager->_workspace_count++] = ws;
+    if (manager->_active_workspace_index == -1) {
+        tui_manager_set_active_workspace(manager, manager->_workspace_count - 1);
     }
 }
 
 void tui_manager_set_active_workspace(TuiManager* manager, int index) {
-    if (index < 0 || index >= manager->workspace_count) return;
-    
-    // Ocultar enviándolo fuera de pantalla (Off-screen parking)
-    if (manager->active_workspace_index != -1) {
-        TuiWorkspace* prev = manager->workspaces[manager->active_workspace_index];
-        ncplane_move_yx(prev->ws_plane, OFFSCREEN_Y, 0);
+    if (index < 0 || index >= manager->_workspace_count) return;
+
+    /* Off-screen parking */
+    if (manager->_active_workspace_index != -1) {
+        TuiWorkspace* prev = manager->_workspaces[manager->_active_workspace_index];
+        ncplane_move_yx(prev->_ws_plane, OFFSCREEN_Y, 0);
     }
-    
-    manager->active_workspace_index = index;
-    TuiWorkspace* next = manager->workspaces[index];
-    ncplane_move_yx(next->ws_plane, 0, 0);
-    ncplane_move_top(next->ws_plane);
+
+    manager->_active_workspace_index = index;
+    TuiWorkspace* next = manager->_workspaces[index];
+    ncplane_move_yx(next->_ws_plane, 0, 0);
+    ncplane_move_top(next->_ws_plane);
 }
 
 void tui_manager_remove_active_workspace(TuiManager* mgr) {
-    if (!mgr || mgr->workspace_count == 0 || mgr->active_workspace_index < 0) return;
-    int idx = mgr->active_workspace_index;
-    tui_workspace_destroy(mgr->workspaces[idx]);
-    for (int i = idx; i < mgr->workspace_count - 1; i++) {
-        mgr->workspaces[i] = mgr->workspaces[i + 1];
+    if (!mgr || mgr->_workspace_count == 0 || mgr->_active_workspace_index < 0) return;
+    int idx = mgr->_active_workspace_index;
+    tui_workspace_destroy(mgr->_workspaces[idx]);
+    for (int i = idx; i < mgr->_workspace_count - 1; i++) {
+        mgr->_workspaces[i] = mgr->_workspaces[i + 1];
     }
-    mgr->workspace_count--;
-    mgr->active_workspace_index = -1;
-    if (mgr->workspace_count > 0) {
-        tui_manager_set_active_workspace(mgr, mgr->workspace_count - 1);
+    mgr->_workspace_count--;
+    mgr->_active_workspace_index = -1;
+    if (mgr->_workspace_count > 0) {
+        tui_manager_set_active_workspace(mgr, mgr->_workspace_count - 1);
     }
 }
 
 bool tui_manager_set_theme(TuiManager* mgr, const char* name) {
     (void)mgr; /* theme is global */
     return tui_theme_apply(name);
+}
+
+/* Opaque type getters */
+
+bool tui_manager_is_running(const TuiManager* mgr) {
+    return mgr ? mgr->_running : false;
+}
+
+int tui_manager_get_workspace_count(const TuiManager* mgr) {
+    return mgr ? mgr->_workspace_count : 0;
+}
+
+int tui_manager_get_active_workspace_index(const TuiManager* mgr) {
+    return mgr ? mgr->_active_workspace_index : -1;
 }

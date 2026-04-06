@@ -84,6 +84,32 @@ bool tui_manager_set_theme(TuiManager* mgr, const char* name);
  */
 void tui_manager_update_hover(int y, int x);
 
+/* Dirty tracking API */
+
+/**
+ * @brief Mark the toolbar area for redraw.
+ * @param mgr Manager instance.
+ */
+void tui_manager_mark_toolbar_dirty(TuiManager* mgr);
+
+/**
+ * @brief Mark the taskbar area for redraw.
+ * @param mgr Manager instance.
+ */
+void tui_manager_mark_taskbar_dirty(TuiManager* mgr);
+
+/**
+ * @brief Mark the tab container area for redraw.
+ * @param mgr Manager instance.
+ */
+void tui_manager_mark_tabs_dirty(TuiManager* mgr);
+
+/**
+ * @brief Mark all areas for full redraw.
+ * @param mgr Manager instance.
+ */
+void tui_manager_mark_full_redraw(TuiManager* mgr);
+
 /* ID management */
 
 /**
@@ -97,5 +123,28 @@ int tui_next_id(void);
  * @param value New counter value.
  */
 void tui_reset_id(int value);
+
+/* Opaque type getters */
+
+/**
+ * @brief Check if the manager is running.
+ * @param mgr Manager instance, or NULL.
+ * @return true if running, false otherwise.
+ */
+bool tui_manager_is_running(const TuiManager* mgr);
+
+/**
+ * @brief Get the number of workspaces.
+ * @param mgr Manager instance, or NULL.
+ * @return Workspace count, or 0 if mgr is NULL.
+ */
+int tui_manager_get_workspace_count(const TuiManager* mgr);
+
+/**
+ * @brief Get the active workspace index.
+ * @param mgr Manager instance, or NULL.
+ * @return Active workspace index, or -1 if mgr is NULL.
+ */
+int tui_manager_get_active_workspace_index(const TuiManager* mgr);
 
 #endif

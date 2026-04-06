@@ -1,7 +1,7 @@
 /**
- * Entry point mínimo para la aplicación demo.
- * Todo el código específico de la aplicación vive en examples/demo.c
- * Este archivo solo inicializa notcurses y delega.
+ * Entry point for the demo application.
+ * All application-specific code lives in examples/demo.c
+ * This file only initializes notcurses and delegates.
  */
 
 #include <notcurses/notcurses.h>
@@ -10,11 +10,11 @@
 #include <stdio.h>
 #include "core/logger.h"
 
-// Forward declaration del main del demo (definido en examples/demo.c)
+/* Forward declaration of the demo main (defined in examples/demo.c) */
 int demo_main(struct notcurses* nc);
 
 static void print_usage(const char* prog) {
-    printf("TMLCS-TUI v0.5.0 — Terminal User Interface Framework\n");
+    printf("TMLCS-TUI v0.5.0 - Terminal User Interface Framework\n");
     printf("Usage: %s [OPTIONS]\n", prog);
     printf("\nOptions:\n");
     printf("  --help, -h        Show this help message\n");
@@ -50,7 +50,14 @@ int main(int argc, char* argv[]) {
             return 0;
         }
         if (strcmp(argv[i], "--log-level") == 0 && i + 1 < argc) {
-            log_level = (LogLevel)atoi(argv[++i]);
+            char* endptr;
+            long val = strtol(argv[++i], &endptr, 10);
+            if (*endptr == '\0' && val >= LOG_DEBUG && val <= LOG_ERROR) {
+                log_level = (LogLevel)val;
+            } else {
+                fprintf(stderr, "Invalid log level: %s (must be 0-3)\n", argv[i]);
+                return 1;
+            }
         }
         if (strcmp(argv[i], "--log-file") == 0 && i + 1 < argc) {
             log_file = argv[++i];
@@ -58,7 +65,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (!setlocale(LC_ALL, "")) {
-        fprintf(stderr, "Error en setlocale\n");
+        fprintf(stderr, "Error in setlocale\n");
         return 1;
     }
 
@@ -68,7 +75,7 @@ int main(int argc, char* argv[]) {
 
     tui_logger_init(log_file);
     tui_logger_set_level(log_level);
-    tui_log(LOG_INFO, "Iniciando TMLCS-TUI (log level: %d, file: %s)", log_level, log_file);
+    tui_log(LOG_INFO, "Starting TMLCS-TUI (log level: %d, file: %s)", log_level, log_file);
 
     notcurses_mice_enable(nc, NCMICE_ALL_EVENTS);
 

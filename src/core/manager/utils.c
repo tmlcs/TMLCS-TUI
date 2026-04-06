@@ -1,16 +1,17 @@
 #include "core/manager.h"
 #include "core/workspace.h"
 #include "core/tab.h"
+#include "core/types_private.h"
 
-// Helper para verificar si una ventana pertenece a un workspace
-// (recorre todos los tabs del workspace buscando la ventana)
+/* Helper to verify that a window belongs to a workspace
+ * (iterates all tabs of the workspace searching for the window) */
 bool window_belongs_to_workspace(TuiWindow* win, TuiWorkspace* ws) {
     if (!win || !ws) return false;
-    for (int i = 0; i < ws->tab_count; i++) {
-        TuiTab* tab = ws->tabs[i];
+    for (int i = 0; i < ws->_tab_count; i++) {
+        TuiTab* tab = ws->_tabs[i];
         if (!tab) continue;
-        for (int j = 0; j < tab->window_count; j++) {
-            if (tab->windows[j] == win) {
+        for (int j = 0; j < tab->_window_count; j++) {
+            if (tab->_windows[j] == win) {
                 return true;
             }
         }

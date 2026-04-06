@@ -56,13 +56,37 @@ void tui_button_set_focused(TuiButton* btn, bool focused) {
 }
 
 bool tui_button_handle_key(TuiButton* btn, uint32_t key, const struct ncinput* ni) {
-    if (!btn || ni->evtype == NCTYPE_RELEASE) return false;
+    if (!btn || !ni || ni->evtype == NCTYPE_RELEASE) return false;
 
     if (key == NCKEY_ENTER || key == '\n' || key == '\r') {
         if (btn->cb) btn->cb(btn->userdata);
         return true;
     }
     return false;
+}
+
+bool tui_button_handle_mouse(TuiButton* btn, uint32_t key, const struct ncinput* ni) {
+    if (!btn || !ni || !btn->plane || ni->evtype == NCTYPE_RELEASE) return false;
+    if (key != NCKEY_BUTTON1) return false;
+
+    /* Check if click is within this button's plane */
+    int plane_abs_y, plane_abs_x;
+    ncplane_abs_yx(btn->plane, &plane_abs_y, &plane_abs_x);
+    unsigned rows, cols;
+    ncplane_dim_yx(btn->plane, &rows, &cols);
+
+    int local_y = ni->y - plane_abs_y;
+    int local_x = ni->x - plane_abs_x;
+
+    if (local_y < 0 || local_y >= (int)rows || local_x < 0 || local_x >= (int)cols) return false;
+
+    /* Activate button */
+    btn->pressed = true;
+    tui_button_render(btn);
+    if (btn->cb) btn->cb(btn->userdata);
+    btn->pressed = false;
+    tui_button_render(btn);
+    return true;
 }
 
 void tui_button_render(TuiButton* btn) {

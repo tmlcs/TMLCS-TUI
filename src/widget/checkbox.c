@@ -96,3 +96,25 @@ void tui_checkbox_render(TuiCheckbox* c) {
     ncplane_set_fg_rgb(c->plane, c->fg_label);
     ncplane_putstr_yx(c->plane, 0, 4, c->label);
 }
+
+bool tui_checkbox_handle_mouse(TuiCheckbox* c, uint32_t key, const struct ncinput* ni) {
+    if (!c || !ni || !c->plane || ni->evtype == NCTYPE_RELEASE) return false;
+    if (key != NCKEY_BUTTON1) return false;
+
+    /* Check if click is within this checkbox's plane */
+    int plane_abs_y, plane_abs_x;
+    ncplane_abs_yx(c->plane, &plane_abs_y, &plane_abs_x);
+    unsigned rows, cols;
+    ncplane_dim_yx(c->plane, &rows, &cols);
+
+    int local_y = ni->y - plane_abs_y;
+    int local_x = ni->x - plane_abs_x;
+
+    if (local_y < 0 || local_y >= (int)rows || local_x < 0 || local_x >= (int)cols) return false;
+
+    /* Toggle checkbox */
+    c->checked = !c->checked;
+    if (c->cb) c->cb(c->checked, c->userdata);
+    tui_checkbox_render(c);
+    return true;
+}

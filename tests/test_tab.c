@@ -3,6 +3,7 @@
 #include "core/tab.h"
 #include "core/window.h"
 #include "core/types.h"
+#include "core/types_private.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,37 +24,37 @@ void tearDown(void) {
 
 static TuiWorkspace* make_dummy_workspace(void) {
     TuiWorkspace* ws = (TuiWorkspace*)calloc(1, sizeof(TuiWorkspace));
-    ws->id = 999;
-    strncpy(ws->name, "TestWS", sizeof(ws->name)-1);
-    ws->name[sizeof(ws->name)-1] = '\0';
-    ws->tab_count = 0;
-    ws->tab_capacity = 4;
-    ws->tabs = (TuiTab**)calloc(4, sizeof(TuiTab*));
-    ws->active_tab_index = -1;
+    ws->_id = 999;
+    strncpy(ws->_name, "TestWS", sizeof(ws->_name)-1);
+    ws->_name[sizeof(ws->_name)-1] = '\0';
+    ws->_tab_count = 0;
+    ws->_tab_capacity = 4;
+    ws->_tabs = (TuiTab**)calloc(4, sizeof(TuiTab*));
+    ws->_active_tab_index = -1;
     /* Don't call ncplane_create — it returns a pointer that the real
        ncplane_destroy will try to dereference. Use a safe sentinel. */
-    ws->ws_plane = (struct ncplane*)0xDEAD;
+    ws->_ws_plane = (struct ncplane*)0xDEAD;
     return ws;
 }
 
 static void free_dummy_workspace(TuiWorkspace* ws) {
     if (!ws) return;
-    free(ws->tabs);
+    free(ws->_tabs);
     /* Don't call ncplane_destroy — it would crash on our sentinel */
-    ws->ws_plane = NULL;
+    ws->_ws_plane = NULL;
     free(ws);
 }
 
 static TuiWindow* make_dummy_window(void) {
     TuiWindow* win = (TuiWindow*)calloc(1, sizeof(TuiWindow));
-    win->id = 999;
-    win->plane = (struct ncplane*)0xBEEF;
-    win->needs_redraw = true;
-    win->focused = false;
-    win->render_cb = NULL;
-    win->on_destroy = NULL;
-    win->text_input = NULL;
-    win->user_data = NULL;
+    win->_id = 999;
+    win->_plane = (struct ncplane*)0xBEEF;
+    win->_needs_redraw = true;
+    win->_focused = false;
+    win->_render_cb = NULL;
+    win->_on_destroy = NULL;
+    win->_text_input = NULL;
+    win->_user_data = NULL;
     return win;
 }
 

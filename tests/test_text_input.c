@@ -468,6 +468,87 @@ void test_text_input_newline_variants(void) {
 /*  Edge Cases (1 test)                                                 */
 /* ------------------------------------------------------------------ */
 
+void stub_set_plane_position(struct ncplane* plane, int y, int x);
+void stub_set_default_plane_position(int y, int x);
+
+void test_text_input_handle_mouse_click_sets_cursor(void) {
+    TuiTextInput* ti = tui_text_input_create((struct ncplane*)0xDEAD, 5, 10, 40, NULL, NULL);
+    ti->focused = true;
+    /* Type "hello" */
+    struct ncinput ni;
+    for (int i = 0; i < 5; i++) {
+        ni = make_ncinput("hello"[i], NCTYPE_UNKNOWN);
+        tui_text_input_handle_key(ti, "hello"[i], &ni);
+    }
+    TEST_ASSERT_EQUAL_INT(5, ti->len);
+    TEST_ASSERT_EQUAL_INT(5, ti->cursor);
+
+    /* Click at position to move cursor to index 2 */
+    /* ncplane is at default (0,0), text starts at x=1, so click at x=3 => buf_pos=2 */
+    stub_set_default_plane_position(0, 0);
+    ni = make_ncinput(NCKEY_BUTTON1, NCTYPE_PRESS);
+    ni.y = 0;
+    ni.x = 3;
+    bool result = tui_text_input_handle_mouse(ti, NCKEY_BUTTON1, &ni);
+    TEST_ASSERT_TRUE(result);
+    TEST_ASSERT_EQUAL_INT(2, ti->cursor);
+    tui_text_input_destroy(ti);
+}
+
+void test_text_input_handle_mouse_click_at_start(void) {
+    TuiTextInput* ti = tui_text_input_create((struct ncplane*)0xDEAD, 5, 10, 40, NULL, NULL);
+    ti->focused = true;
+    struct ncinput ni = make_ncinput('a', NCTYPE_UNKNOWN);
+    tui_text_input_handle_key(ti, 'a', &ni);
+    tui_text_input_handle_key(ti, 'b', &ni);
+    tui_text_input_handle_key(ti, 'c', &ni);
+    TEST_ASSERT_EQUAL_INT(3, ti->cursor);
+
+    /* Click at x=1 (after "[" border, scroll_off=0) => buf_pos=0 */
+    stub_set_default_plane_position(0, 0);
+    ni = make_ncinput(NCKEY_BUTTON1, NCTYPE_PRESS);
+    ni.y = 0; ni.x = 1;
+    tui_text_input_handle_mouse(ti, NCKEY_BUTTON1, &ni);
+    TEST_ASSERT_EQUAL_INT(0, ti->cursor);
+    tui_text_input_destroy(ti);
+}
+
+void test_text_input_handle_mouse_click_past_end(void) {
+    TuiTextInput* ti = tui_text_input_create((struct ncplane*)0xDEAD, 5, 10, 40, NULL, NULL);
+    ti->focused = true;
+    struct ncinput ni = make_ncinput('x', NCTYPE_UNKNOWN);
+    tui_text_input_handle_key(ti, 'x', &ni);
+    TEST_ASSERT_EQUAL_INT(1, ti->len);
+
+    /* Click at x=50 (way past text) => cursor clamped to len=1 */
+    stub_set_default_plane_position(0, 0);
+    ni = make_ncinput(NCKEY_BUTTON1, NCTYPE_PRESS);
+    ni.y = 0; ni.x = 50;
+    tui_text_input_handle_mouse(ti, NCKEY_BUTTON1, &ni);
+    TEST_ASSERT_EQUAL_INT(1, ti->cursor);
+    tui_text_input_destroy(ti);
+}
+
+void test_text_input_handle_mouse_outside_plane_returns_false(void) {
+    TuiTextInput* ti = tui_text_input_create((struct ncplane*)0xDEAD, 5, 10, 40, NULL, NULL);
+    stub_set_default_plane_position(0, 0);
+    struct ncinput ni = make_ncinput(NCKEY_BUTTON1, NCTYPE_PRESS);
+    ni.y = 99; ni.x = 99;  /* Way outside */
+    bool result = tui_text_input_handle_mouse(ti, NCKEY_BUTTON1, &ni);
+    TEST_ASSERT_FALSE(result);
+    tui_text_input_destroy(ti);
+}
+
+void test_text_input_handle_mouse_release_ignored(void) {
+    TuiTextInput* ti = tui_text_input_create((struct ncplane*)0xDEAD, 5, 10, 40, NULL, NULL);
+    stub_set_default_plane_position(0, 0);
+    struct ncinput ni = make_ncinput(NCKEY_BUTTON1, NCTYPE_RELEASE);
+    ni.y = 0; ni.x = 3;
+    bool result = tui_text_input_handle_mouse(ti, NCKEY_BUTTON1, &ni);
+    TEST_ASSERT_FALSE(result);
+    tui_text_input_destroy(ti);
+}
+
 void test_text_input_release_event_ignored(void) {
     TuiTextInput* ti = tui_text_input_create((struct ncplane*)0xDEAD, 5, 10, 40, NULL, NULL);
     ti->focused = true;
@@ -530,6 +611,13 @@ int main(void) {
 
     /* Edge Cases */
     RUN_TEST(test_text_input_release_event_ignored);
+
+    /* Mouse Handling */
+    RUN_TEST(test_text_input_handle_mouse_click_sets_cursor);
+    RUN_TEST(test_text_input_handle_mouse_click_at_start);
+    RUN_TEST(test_text_input_handle_mouse_click_past_end);
+    RUN_TEST(test_text_input_handle_mouse_outside_plane_returns_false);
+    RUN_TEST(test_text_input_handle_mouse_release_ignored);
 
     return UNITY_END();
 }

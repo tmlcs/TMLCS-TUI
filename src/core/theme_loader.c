@@ -38,6 +38,7 @@ bool tui_theme_set_color(const char* name, unsigned rgb) {
 }
 
 bool tui_theme_get_color(const char* name, unsigned* rgb) {
+    if (!name) return false;
     int idx = find_override(name);
     if (idx >= 0) {
         if (rgb) *rgb = s_theme_overrides[idx].rgb;

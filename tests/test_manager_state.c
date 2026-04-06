@@ -3,6 +3,7 @@
 #include "core/manager.h"
 #include "core/workspace.h"
 #include "core/types.h"
+#include "core/types_private.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -19,14 +20,14 @@ void stub_reset_counters(void);
 
 static TuiWorkspace* make_dummy_workspace_for_manager(void) {
     TuiWorkspace* ws = (TuiWorkspace*)calloc(1, sizeof(TuiWorkspace));
-    ws->id = 777;
-    strncpy(ws->name, "MgrWS", sizeof(ws->name)-1);
-    ws->name[sizeof(ws->name)-1] = '\0';
-    ws->tab_count = 0;
-    ws->tab_capacity = 4;
-    ws->tabs = (TuiTab**)calloc(4, sizeof(TuiTab*));
-    ws->active_tab_index = -1;
-    ws->ws_plane = (struct ncplane*)0xDEAD;
+    ws->_id = 777;
+    strncpy(ws->_name, "MgrWS", sizeof(ws->_name)-1);
+    ws->_name[sizeof(ws->_name)-1] = '\0';
+    ws->_tab_count = 0;
+    ws->_tab_capacity = 4;
+    ws->_tabs = (TuiTab**)calloc(4, sizeof(TuiTab*));
+    ws->_active_tab_index = -1;
+    ws->_ws_plane = (struct ncplane*)0xDEAD;
     return ws;
 }
 
@@ -53,12 +54,12 @@ void tearDown(void) {
 void test_manager_create_success(void) {
     TuiManager* mgr = tui_manager_create((struct notcurses*)0xBEEF);
     TEST_ASSERT_NOT_NULL(mgr);
-    TEST_ASSERT_TRUE(mgr->nc == (struct notcurses*)0xBEEF);
-    TEST_ASSERT_TRUE(mgr->running);
-    TEST_ASSERT_EQUAL_INT(0, mgr->workspace_count);
-    TEST_ASSERT_EQUAL_INT(-1, mgr->active_workspace_index);
-    TEST_ASSERT_EQUAL_INT(4, mgr->workspace_capacity);
-    TEST_ASSERT_NOT_NULL(mgr->workspaces);
+    TEST_ASSERT_TRUE(mgr->_nc == (struct notcurses*)0xBEEF);
+    TEST_ASSERT_TRUE(mgr->_running);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_workspace_count);
+    TEST_ASSERT_EQUAL_INT(-1, mgr->_active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(4, mgr->_workspace_capacity);
+    TEST_ASSERT_NOT_NULL(mgr->_workspaces);
     tui_manager_destroy(mgr);
 }
 
@@ -86,8 +87,8 @@ void test_manager_add_workspace_first_sets_active(void) {
     TuiWorkspace* ws = make_dummy_workspace_for_manager();
     tui_manager_add_workspace(mgr, ws);
 
-    TEST_ASSERT_EQUAL_INT(1, mgr->workspace_count);
-    TEST_ASSERT_EQUAL_INT(0, mgr->active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(1, mgr->_workspace_count);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_active_workspace_index);
 
     /* Manager owns ws — destroy via manager */
     tui_manager_destroy(mgr);
@@ -99,13 +100,13 @@ void test_manager_add_workspace_second_does_not_change_active(void) {
 
     TuiWorkspace* ws0 = make_dummy_workspace_for_manager();
     tui_manager_add_workspace(mgr, ws0);
-    TEST_ASSERT_EQUAL_INT(0, mgr->active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_active_workspace_index);
 
     TuiWorkspace* ws1 = make_dummy_workspace_for_manager();
     tui_manager_add_workspace(mgr, ws1);
 
-    TEST_ASSERT_EQUAL_INT(2, mgr->workspace_count);
-    TEST_ASSERT_EQUAL_INT(0, mgr->active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(2, mgr->_workspace_count);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_active_workspace_index);
 
     tui_manager_destroy(mgr);
 }
@@ -119,9 +120,9 @@ void test_manager_add_workspace_realloc_trigger(void) {
         tui_manager_add_workspace(mgr, ws);
     }
 
-    TEST_ASSERT_EQUAL_INT(5, mgr->workspace_count);
-    TEST_ASSERT_TRUE(mgr->workspace_capacity >= 8);
-    TEST_ASSERT_EQUAL_INT(0, mgr->active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(5, mgr->_workspace_count);
+    TEST_ASSERT_TRUE(mgr->_workspace_capacity >= 8);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_active_workspace_index);
 
     tui_manager_destroy(mgr);
 }
@@ -131,7 +132,7 @@ void test_manager_add_workspace_null_is_safe(void) {
     TEST_ASSERT_NOT_NULL(mgr);
 
     tui_manager_add_workspace(mgr, NULL);  /* Should handle gracefully */
-    TEST_ASSERT_EQUAL_INT(0, mgr->workspace_count);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_workspace_count);
 
     tui_manager_destroy(mgr);
 }
@@ -150,7 +151,7 @@ void test_manager_set_active_valid_index(void) {
     }
 
     tui_manager_set_active_workspace(mgr, 2);
-    TEST_ASSERT_EQUAL_INT(2, mgr->active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(2, mgr->_active_workspace_index);
 
     tui_manager_destroy(mgr);
 }
@@ -161,10 +162,10 @@ void test_manager_set_active_negative_returns_early(void) {
 
     TuiWorkspace* ws = make_dummy_workspace_for_manager();
     tui_manager_add_workspace(mgr, ws);
-    TEST_ASSERT_EQUAL_INT(0, mgr->active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_active_workspace_index);
 
     tui_manager_set_active_workspace(mgr, -1);
-    TEST_ASSERT_EQUAL_INT(0, mgr->active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_active_workspace_index);
 
     tui_manager_destroy(mgr);
 }
@@ -175,10 +176,10 @@ void test_manager_set_active_out_of_bounds_returns_early(void) {
 
     TuiWorkspace* ws = make_dummy_workspace_for_manager();
     tui_manager_add_workspace(mgr, ws);
-    TEST_ASSERT_EQUAL_INT(0, mgr->active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_active_workspace_index);
 
     tui_manager_set_active_workspace(mgr, 99);
-    TEST_ASSERT_EQUAL_INT(0, mgr->active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_active_workspace_index);
 
     tui_manager_destroy(mgr);
 }
@@ -193,12 +194,12 @@ void test_manager_remove_active_single(void) {
 
     TuiWorkspace* ws = make_dummy_workspace_for_manager();
     tui_manager_add_workspace(mgr, ws);
-    TEST_ASSERT_EQUAL_INT(1, mgr->workspace_count);
+    TEST_ASSERT_EQUAL_INT(1, mgr->_workspace_count);
 
     tui_manager_remove_active_workspace(mgr);
 
-    TEST_ASSERT_EQUAL_INT(0, mgr->workspace_count);
-    TEST_ASSERT_EQUAL_INT(-1, mgr->active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_workspace_count);
+    TEST_ASSERT_EQUAL_INT(-1, mgr->_active_workspace_index);
 
     /* ws was destroyed by remove — manager has no workspaces left */
     tui_manager_destroy(mgr);
@@ -212,13 +213,13 @@ void test_manager_remove_active_multiple(void) {
         TuiWorkspace* ws = make_dummy_workspace_for_manager();
         tui_manager_add_workspace(mgr, ws);
     }
-    TEST_ASSERT_EQUAL_INT(3, mgr->workspace_count);
-    TEST_ASSERT_EQUAL_INT(0, mgr->active_workspace_index);
+    TEST_ASSERT_EQUAL_INT(3, mgr->_workspace_count);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_active_workspace_index);
 
     tui_manager_remove_active_workspace(mgr);
 
-    TEST_ASSERT_EQUAL_INT(2, mgr->workspace_count);
-    TEST_ASSERT_EQUAL_INT(1, mgr->active_workspace_index);  /* last remaining = count-1 */
+    TEST_ASSERT_EQUAL_INT(2, mgr->_workspace_count);
+    TEST_ASSERT_EQUAL_INT(1, mgr->_active_workspace_index);  /* last remaining = count-1 */
 
     tui_manager_destroy(mgr);  /* destroys remaining 2 workspaces */
 }
@@ -231,11 +232,11 @@ void test_manager_remove_active_null_manager(void) {
 void test_manager_remove_active_empty(void) {
     TuiManager* mgr = tui_manager_create((struct notcurses*)0xBEEF);
     TEST_ASSERT_NOT_NULL(mgr);
-    TEST_ASSERT_EQUAL_INT(0, mgr->workspace_count);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_workspace_count);
 
     tui_manager_remove_active_workspace(mgr);  /* no workspaces, should be safe */
 
-    TEST_ASSERT_EQUAL_INT(0, mgr->workspace_count);
+    TEST_ASSERT_EQUAL_INT(0, mgr->_workspace_count);
 
     tui_manager_destroy(mgr);
 }
@@ -252,7 +253,7 @@ void test_manager_destroy_frees_all_workspaces(void) {
     TuiWorkspace* ws1 = make_dummy_workspace_for_manager();
     tui_manager_add_workspace(mgr, ws0);
     tui_manager_add_workspace(mgr, ws1);
-    TEST_ASSERT_EQUAL_INT(2, mgr->workspace_count);
+    TEST_ASSERT_EQUAL_INT(2, mgr->_workspace_count);
 
     /* Destroying the manager destroys both workspaces internally.
      * Do NOT free ws0/ws1 separately — manager owns them. */

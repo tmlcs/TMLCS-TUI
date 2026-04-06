@@ -53,6 +53,35 @@ static int g_ncplane_resize_simple_count = 0;
 static int g_ncplane_move_yx_count = 0;
 static int g_ncplane_move_top_count = 0;
 
+/* Configurable absolute position per plane (for mouse hit testing) */
+#define MAX_PLANE_POSITIONS 32
+static struct { struct ncplane* plane; int y; int x; } g_plane_positions[MAX_PLANE_POSITIONS];
+static int g_plane_position_count = 0;
+/* Default fallback position */
+static int g_default_plane_y = 0;
+static int g_default_plane_x = 0;
+
+void stub_set_plane_position(struct ncplane* plane, int y, int x) {
+    /* Find existing entry or add new one */
+    for (int i = 0; i < g_plane_position_count; i++) {
+        if (g_plane_positions[i].plane == plane) {
+            g_plane_positions[i].y = y;
+            g_plane_positions[i].x = x;
+            return;
+        }
+    }
+    if (g_plane_position_count < MAX_PLANE_POSITIONS) {
+        g_plane_positions[g_plane_position_count].plane = plane;
+        g_plane_positions[g_plane_position_count].y = y;
+        g_plane_positions[g_plane_position_count].x = x;
+        g_plane_position_count++;
+    }
+}
+void stub_set_default_plane_position(int y, int x) {
+    g_default_plane_y = y;
+    g_default_plane_x = x;
+}
+
 void stub_reset_counters(void) {
     g_ncplane_resize_simple_count = 0;
     g_ncplane_move_yx_count = 0;
@@ -105,7 +134,17 @@ void ncplane_yx(const struct ncplane* n, int* restrict y, int* restrict x) {
     (void)n; if(y) *y=0; if(x) *x=0;
 }
 void ncplane_abs_yx(const struct ncplane* n, int* restrict y, int* restrict x) {
-    (void)n; if(y) *y=0; if(x) *x=0;
+    /* Check per-plane position registry first */
+    for (int i = 0; i < g_plane_position_count; i++) {
+        if ((const struct ncplane*)g_plane_positions[i].plane == n) {
+            if (y) *y = g_plane_positions[i].y;
+            if (x) *x = g_plane_positions[i].x;
+            return;
+        }
+    }
+    /* Fallback to default */
+    if (y) *y = g_default_plane_y;
+    if (x) *x = g_default_plane_x;
 }
 struct ncplane* ncplane_parent(struct ncplane* n) {
     (void)n; return (struct ncplane*)g_dummy_data;

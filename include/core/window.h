@@ -32,4 +32,52 @@ int tui_window_get_id(const TuiWindow* win);
  */
 bool tui_window_is_focused(const TuiWindow* win);
 
+/**
+ * @brief Register a widget with this window for mouse event routing.
+ * @param win Window instance. Must not be NULL.
+ * @param widget Pointer to the widget instance. Must not be NULL.
+ * @param plane Widget's ncplane (for hit testing). Must not be NULL.
+ * @param type Widget type (WIDGET_BUTTON, WIDGET_CHECKBOX, etc.).
+ */
+void tui_window_add_widget(TuiWindow* win, void* widget, struct ncplane* plane, int type);
+
+/**
+ * @brief Find the widget at the given local coordinates.
+ * @param win Window instance. Must not be NULL.
+ * @param local_y Y coordinate relative to the window plane.
+ * @param local_x X coordinate relative to the window plane.
+ * @param out_type Optional output for the widget type. May be NULL.
+ * @return Pointer to the widget, or NULL if no widget at this position.
+ */
+void* tui_window_get_widget_at(TuiWindow* win, int local_y, int local_x, int* out_type);
+
+/**
+ * @brief Mark the window for redraw on the next render cycle.
+ * @param win Window instance, or NULL.
+ */
+void tui_window_mark_dirty(TuiWindow* win);
+
+/* Opaque type getters */
+
+/**
+ * @brief Get the underlying notcurses plane.
+ * @param win Window instance, or NULL.
+ * @return The ncplane pointer, or NULL if win is NULL.
+ */
+struct ncplane* tui_window_get_plane(const TuiWindow* win);
+
+/**
+ * @brief Get the opaque user data pointer.
+ * @param win Window instance, or NULL.
+ * @return User data pointer, or NULL if win is NULL.
+ */
+void* tui_window_get_user_data(const TuiWindow* win);
+
+/**
+ * @brief Set the opaque user data pointer.
+ * @param win Window instance, or NULL.
+ * @param data Opaque pointer to store.
+ */
+void tui_window_set_user_data(TuiWindow* win, void* data);
+
 #endif
