@@ -71,6 +71,7 @@
 // --- Zonas de interaccion en ventana ---
 #define GRIP_AREA_START_X       3     // Offset from right para zona de grip resize
 #define TAB_LABEL_PADDING       6     // Chars extra para tab label (espacios + decoracion)
+#define MAX_MOUSE_BUTTON        NCKEY_BUTTON11  // notcurses button limit
 
 // --- Colores del cursor y bordes ---
 #define CURSOR_BLOCK_COLOR  0xffb86c  // Color bloque cursor (naranja)

@@ -139,10 +139,6 @@ void log_server_render(TuiWindow* win) {
 }
 
 int demo_main(struct notcurses* nc) {
-    // Inicializar motor de logging
-    tui_logger_init("/tmp/tmlcs_tui_debug.log");
-    tui_log(LOG_INFO, "Iniciando TMLCS-TUI (demo)");
-    
     TuiManager* mgr = tui_manager_create(nc);
 
     // Workspace 1
@@ -228,6 +224,5 @@ int demo_main(struct notcurses* nc) {
     }
 
     tui_manager_destroy(mgr);
-    tui_logger_destroy();
     return 0;
 }
