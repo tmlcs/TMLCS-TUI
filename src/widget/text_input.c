@@ -2,6 +2,7 @@
 #include "core/theme.h"
 #include "core/clipboard.h"
 #include "core/widget.h"
+#include "core/utf8.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,9 +29,14 @@ TuiTextInput* tui_text_input_create(struct ncplane* parent,
     ti->on_submit = on_submit;
     ti->userdata  = userdata;
     ti->focused   = false;
-    ti->cursor    = 0;
-    ti->len       = 0;
+    ti->len_bytes = 0;
+    ti->len_codepoints = 0;
+    ti->cursor_cp = 0;
     ti->scroll_off = 0;
+    ti->selecting = false;
+    ti->select_start_cp = 0;
+    ti->select_end_cp = 0;
+    ti->buffer[0] = '\0';
 
     // Paleta de colores por defecto (tema Dracula mejorado para visibilidad)
     ti->bg_normal  = THEME_BG_TASKBAR;   // Fondo oscuro base
@@ -53,10 +59,14 @@ void tui_text_input_destroy(TuiTextInput* ti) {
 
 void tui_text_input_clear(TuiTextInput* ti) {
     if (!ti) return;
-    memset(ti->buffer, 0, TEXT_INPUT_MAX_LEN);
-    ti->cursor     = 0;
-    ti->len        = 0;
+    ti->buffer[0] = '\0';
+    ti->len_bytes = 0;
+    ti->len_codepoints = 0;
+    ti->cursor_cp = 0;
     ti->scroll_off = 0;
+    ti->selecting = false;
+    ti->select_start_cp = 0;
+    ti->select_end_cp = 0;
 }
 
 const char* tui_text_input_get(TuiTextInput* ti) {
@@ -64,41 +74,94 @@ const char* tui_text_input_get(TuiTextInput* ti) {
 }
 
 int tui_text_input_get_cursor(const TuiTextInput* ti) {
-    return ti ? ti->cursor : -1;
+    return ti ? ti->cursor_cp : -1;
 }
 
 int tui_text_input_get_len(const TuiTextInput* ti) {
-    return ti ? ti->len : 0;
+    return ti ? ti->len_codepoints : 0;
 }
 
 bool tui_text_input_is_focused(const TuiTextInput* ti) {
     return ti ? ti->focused : false;
 }
 
+bool tui_text_input_is_selecting(const TuiTextInput* ti) {
+    return ti ? ti->selecting : false;
+}
+
+bool tui_text_input_get_selection(const TuiTextInput* ti, int* out_start, int* out_end) {
+    if (!ti || !ti->selecting) return false;
+    int s = ti->select_start_cp < ti->select_end_cp ? ti->select_start_cp : ti->select_end_cp;
+    int e = ti->select_start_cp < ti->select_end_cp ? ti->select_end_cp : ti->select_start_cp;
+    if (out_start) *out_start = s;
+    if (out_end) *out_end = e;
+    return true;
+}
+
+static void clear_selection(TuiTextInput* ti) {
+    ti->selecting = false;
+    ti->select_start_cp = 0;
+    ti->select_end_cp = 0;
+}
+
+static void delete_selection(TuiTextInput* ti) {
+    if (!ti->selecting) return;
+    int start = ti->select_start_cp < ti->select_end_cp ? ti->select_start_cp : ti->select_end_cp;
+    int end = ti->select_start_cp < ti->select_end_cp ? ti->select_end_cp : ti->select_start_cp;
+    ti->len_bytes = utf8_delete_range(ti->buffer, ti->len_bytes, start, end);
+    ti->len_codepoints -= (end - start);
+    ti->cursor_cp = start;
+    clear_selection(ti);
+}
+
 bool tui_text_input_copy(TuiTextInput* ti) {
-    if (!ti || ti->len == 0) return false;
+    if (!ti || ti->len_codepoints == 0) return false;
+    if (ti->selecting) {
+        int start = ti->select_start_cp < ti->select_end_cp ? ti->select_start_cp : ti->select_end_cp;
+        int end = ti->select_start_cp < ti->select_end_cp ? ti->select_end_cp : ti->select_start_cp;
+        char* selected = utf8_substring(ti->buffer, start, end);
+        bool ok = tui_clipboard_copy(selected);
+        free(selected);
+        return ok;
+    }
     return tui_clipboard_copy(ti->buffer);
 }
 
 bool tui_text_input_paste(TuiTextInput* ti) {
     if (!ti) return false;
-    char buf[CLIPBOARD_MAX_LEN];
-    int len = tui_clipboard_paste(buf, sizeof(buf));
-    if (len <= 0) return false;
-    if (ti->len + len >= TEXT_INPUT_MAX_LEN - 1) return false;
+    const char* clip = tui_clipboard_get();
+    if (!clip || clip[0] == '\0') return false;
 
-    memmove(&ti->buffer[ti->cursor + len],
-            &ti->buffer[ti->cursor],
-            (size_t)(ti->len - ti->cursor + 1));
-    memcpy(&ti->buffer[ti->cursor], buf, (size_t)len);
-    ti->cursor += len;
-    ti->len += len;
+    if (ti->selecting) {
+        delete_selection(ti);
+    }
+
+    int clip_cp = utf8_codepoint_count(clip, (int)strlen(clip));
+    if (ti->len_codepoints + clip_cp >= TEXT_INPUT_MAX_LEN - 1) return false;
+
+    int result = utf8_insert(ti->buffer, ti->len_bytes,
+                             (int)sizeof(ti->buffer), ti->cursor_cp, clip);
+    if (result < 0) return false;
+
+    ti->len_bytes = result;
+    ti->len_codepoints = utf8_codepoint_count(ti->buffer, ti->len_bytes);
+    ti->cursor_cp += clip_cp;
     tui_text_input_render(ti);
     return true;
 }
 
 bool tui_text_input_cut(TuiTextInput* ti) {
-    if (!ti || ti->len == 0) return false;
+    if (!ti || ti->len_codepoints == 0) return false;
+    if (ti->selecting) {
+        int start = ti->select_start_cp < ti->select_end_cp ? ti->select_start_cp : ti->select_end_cp;
+        int end = ti->select_start_cp < ti->select_end_cp ? ti->select_end_cp : ti->select_start_cp;
+        char* selected = utf8_substring(ti->buffer, start, end);
+        tui_clipboard_copy(selected);
+        free(selected);
+        delete_selection(ti);
+        tui_text_input_render(ti);
+        return true;
+    }
     tui_clipboard_copy(ti->buffer);
     tui_text_input_clear(ti);
     return true;
@@ -115,14 +178,28 @@ bool tui_text_input_handle_key(TuiTextInput* ti, uint32_t key, const struct ncin
         return true;
     }
 
+    /* Delete key */
+    if (key == NCKEY_DEL) {
+        if (ti->selecting) {
+            delete_selection(ti);
+        } else if (ti->cursor_cp < ti->len_codepoints) {
+            ti->len_bytes = utf8_delete_range(ti->buffer, ti->len_bytes,
+                                               ti->cursor_cp, ti->cursor_cp + 1);
+            ti->len_codepoints--;
+        }
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Backspace */
     if (key == NCKEY_BACKSPACE || key == 127) {
-        if (ti->cursor > 0) {
-            // Eliminar el carácter anterior al cursor
-            memmove(&ti->buffer[ti->cursor - 1],
-                    &ti->buffer[ti->cursor],
-                    ti->len - ti->cursor + 1);
-            ti->cursor--;
-            ti->len--;
+        if (ti->selecting) {
+            delete_selection(ti);
+        } else if (ti->cursor_cp > 0) {
+            ti->len_bytes = utf8_delete_range(ti->buffer, ti->len_bytes,
+                                               ti->cursor_cp - 1, ti->cursor_cp);
+            ti->len_codepoints--;
+            ti->cursor_cp--;
         }
         tui_text_input_render(ti);
         return true;
@@ -130,71 +207,152 @@ bool tui_text_input_handle_key(TuiTextInput* ti, uint32_t key, const struct ncin
 
     /* Ctrl+Left: jump word left */
     if (ni->ctrl && key == NCKEY_LEFT) {
-        while (ti->cursor > 0 && ti->buffer[ti->cursor - 1] == ' ') ti->cursor--;
-        while (ti->cursor > 0 && ti->buffer[ti->cursor - 1] != ' ') ti->cursor--;
+        clear_selection(ti);
+        while (ti->cursor_cp > 0) {
+            int byte_off = utf8_cp_to_byte_offset(ti->buffer, ti->cursor_cp - 1);
+            if ((unsigned char)ti->buffer[byte_off] == ' ') break;
+            ti->cursor_cp--;
+        }
+        while (ti->cursor_cp > 0) {
+            int byte_off = utf8_cp_to_byte_offset(ti->buffer, ti->cursor_cp - 1);
+            if ((unsigned char)ti->buffer[byte_off] != ' ') break;
+            ti->cursor_cp--;
+        }
         tui_text_input_render(ti);
         return true;
     }
 
     /* Ctrl+Right: jump word right */
     if (ni->ctrl && key == NCKEY_RIGHT) {
-        while (ti->cursor < ti->len && ti->buffer[ti->cursor] == ' ') ti->cursor++;
-        while (ti->cursor < ti->len && ti->buffer[ti->cursor] != ' ') ti->cursor++;
+        clear_selection(ti);
+        while (ti->cursor_cp < ti->len_codepoints) {
+            int byte_off = utf8_cp_to_byte_offset(ti->buffer, ti->cursor_cp);
+            if (ti->buffer[byte_off] == '\0' || (unsigned char)ti->buffer[byte_off] == ' ') break;
+            ti->cursor_cp++;
+        }
+        while (ti->cursor_cp < ti->len_codepoints) {
+            int byte_off = utf8_cp_to_byte_offset(ti->buffer, ti->cursor_cp);
+            if (ti->buffer[byte_off] == '\0' || (unsigned char)ti->buffer[byte_off] != ' ') break;
+            ti->cursor_cp++;
+        }
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Shift+Left: extend selection left */
+    if (key == NCKEY_LEFT && ni->shift) {
+        if (!ti->selecting) {
+            ti->selecting = true;
+            ti->select_start_cp = ti->cursor_cp;
+        }
+        if (ti->cursor_cp > 0) ti->cursor_cp--;
+        ti->select_end_cp = ti->cursor_cp;
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Shift+Right: extend selection right */
+    if (key == NCKEY_RIGHT && ni->shift) {
+        if (!ti->selecting) {
+            ti->selecting = true;
+            ti->select_start_cp = ti->cursor_cp;
+        }
+        if (ti->cursor_cp < ti->len_codepoints) ti->cursor_cp++;
+        ti->select_end_cp = ti->cursor_cp;
         tui_text_input_render(ti);
         return true;
     }
 
     if (key == NCKEY_LEFT) {
-        if (ti->cursor > 0) ti->cursor--;
+        clear_selection(ti);
+        if (ti->cursor_cp > 0) ti->cursor_cp--;
         tui_text_input_render(ti);
         return true;
     }
 
     if (key == NCKEY_RIGHT) {
-        if (ti->cursor < ti->len) ti->cursor++;
+        clear_selection(ti);
+        if (ti->cursor_cp < ti->len_codepoints) ti->cursor_cp++;
         tui_text_input_render(ti);
         return true;
     }
 
-    /* Home / Ctrl+A: move cursor to beginning */
-    if (key == NCKEY_HOME || (ni->ctrl && (key == 'a' || key == 'A'))) {
-        ti->cursor = 0;
+    /* Home: move cursor to beginning */
+    if (key == NCKEY_HOME) {
+        clear_selection(ti);
+        ti->cursor_cp = 0;
         tui_text_input_render(ti);
         return true;
     }
 
-    /* End / Ctrl+E: move cursor to end */
-    if (key == NCKEY_END || (ni->ctrl && (key == 'e' || key == 'E'))) {
-        ti->cursor = ti->len;
+    /* End: move cursor to end */
+    if (key == NCKEY_END) {
+        clear_selection(ti);
+        ti->cursor_cp = ti->len_codepoints;
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Ctrl+A: select all */
+    if (ni->ctrl && (key == 'a' || key == 'A')) {
+        ti->selecting = true;
+        ti->select_start_cp = 0;
+        ti->select_end_cp = ti->len_codepoints;
+        ti->cursor_cp = ti->len_codepoints;
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Ctrl+E: move cursor to end */
+    if (ni->ctrl && (key == 'e' || key == 'E')) {
+        clear_selection(ti);
+        ti->cursor_cp = ti->len_codepoints;
         tui_text_input_render(ti);
         return true;
     }
 
     /* Ctrl+K: cut from cursor to end */
     if (ni->ctrl && (key == 'k' || key == 'K')) {
-        ti->buffer[ti->cursor] = '\0';
-        ti->len = ti->cursor;
+        int byte_off = utf8_cp_to_byte_offset(ti->buffer, ti->cursor_cp);
+        ti->buffer[byte_off] = '\0';
+        ti->len_bytes = byte_off;
+        ti->len_codepoints = ti->cursor_cp;
         tui_text_input_render(ti);
         return true;
     }
 
     /* Ctrl+U: cut from beginning to cursor */
     if (ni->ctrl && (key == 'u' || key == 'U')) {
-        memmove(ti->buffer, &ti->buffer[ti->cursor], (size_t)(ti->len - ti->cursor + 1));
-        ti->len -= ti->cursor;
-        ti->cursor = 0;
+        int byte_off = utf8_cp_to_byte_offset(ti->buffer, ti->cursor_cp);
+        int remaining = ti->len_bytes - byte_off;
+        memmove(ti->buffer, ti->buffer + byte_off, (size_t)remaining + 1);
+        ti->len_bytes -= byte_off;
+        ti->len_codepoints -= ti->cursor_cp;
+        ti->cursor_cp = 0;
         tui_text_input_render(ti);
         return true;
     }
 
     /* Ctrl+W: delete word before cursor */
     if (ni->ctrl && (key == 'w' || key == 'W')) {
-        int end = ti->cursor;
-        while (end > 0 && ti->buffer[end - 1] == ' ') end--;
-        while (end > 0 && ti->buffer[end - 1] != ' ') end--;
-        memmove(&ti->buffer[end], &ti->buffer[ti->cursor], (size_t)(ti->len - ti->cursor + 1));
-        ti->len -= (ti->cursor - end);
-        ti->cursor = end;
+        int end = ti->cursor_cp;
+        while (end > 0) {
+            int byte_off = utf8_cp_to_byte_offset(ti->buffer, end - 1);
+            if ((unsigned char)ti->buffer[byte_off] != ' ') break;
+            end--;
+        }
+        while (end > 0) {
+            int byte_off = utf8_cp_to_byte_offset(ti->buffer, end - 1);
+            if ((unsigned char)ti->buffer[byte_off] == ' ') break;
+            end--;
+        }
+        int end_byte = utf8_cp_to_byte_offset(ti->buffer, ti->cursor_cp);
+        int remaining = ti->len_bytes - end_byte;
+        int start_byte = utf8_cp_to_byte_offset(ti->buffer, end);
+        memmove(ti->buffer + start_byte, ti->buffer + end_byte, (size_t)remaining + 1);
+        ti->len_bytes -= (end_byte - start_byte);
+        ti->len_codepoints = utf8_codepoint_count(ti->buffer, ti->len_bytes);
+        ti->cursor_cp = end;
         tui_text_input_render(ti);
         return true;
     }
@@ -211,21 +369,35 @@ bool tui_text_input_handle_key(TuiTextInput* ti, uint32_t key, const struct ncin
         return true;
     }
 
-    /* Ctrl+X: cut all text */
+    /* Ctrl+X: cut */
     if (ni->ctrl && (key == 'x' || key == 'X')) {
         tui_text_input_cut(ti);
         return true;
     }
 
-    // Inserción de caracteres ASCII imprimibles
-    if (key >= 0x20 && key < 0x7f && ti->len < TEXT_INPUT_MAX_LEN - 1) {
-        // Desplazar el contenido a la derecha para insertar
-        memmove(&ti->buffer[ti->cursor + 1],
-                &ti->buffer[ti->cursor],
-                ti->len - ti->cursor + 1);
-        ti->buffer[ti->cursor] = (char)key;
-        ti->cursor++;
-        ti->len++;
+    /* Insert printable Unicode characters (exclude C1 controls 0x80-0x9F) */
+    if (key >= 0x20 && key <= 0x10FFFF && !(key >= 0x80 && key <= 0x9F) && !ni->ctrl && !ni->alt) {
+        if (ti->len_codepoints >= TEXT_INPUT_MAX_LEN - 1) return false;
+
+        /* If selecting, delete selection first */
+        if (ti->selecting) {
+            delete_selection(ti);
+        }
+
+        char encoded[4];
+        int byte_len = utf8_encode(key, encoded);
+
+        /* Insert at cursor position */
+        int insert_pos = utf8_cp_to_byte_offset(ti->buffer, ti->cursor_cp);
+        int remaining = ti->len_bytes - insert_pos;
+        memmove(ti->buffer + insert_pos + byte_len,
+                ti->buffer + insert_pos,
+                (size_t)remaining + 1);
+        memcpy(ti->buffer + insert_pos, encoded, (size_t)byte_len);
+        ti->len_bytes += byte_len;
+        ti->len_codepoints++;
+        ti->cursor_cp++;
+        clear_selection(ti);
         tui_text_input_render(ti);
         return true;
     }
@@ -239,16 +411,16 @@ void tui_text_input_render(TuiTextInput* ti) {
     unsigned cols;
     ncplane_dim_yx(ti->plane, NULL, &cols);
 
-    int visible_width = (int)cols - 2; // Margen de 1 px a cada lado
+    int visible_width = (int)cols - 2; /* Margen de 1 px a cada lado */
 
-    // Ajustar scroll para mantener el cursor visible
-    if (ti->cursor < ti->scroll_off) {
-        ti->scroll_off = ti->cursor;
-    } else if (ti->cursor >= ti->scroll_off + visible_width) {
-        ti->scroll_off = ti->cursor - visible_width + 1;
+    /* Adjust scroll to keep cursor visible */
+    if (ti->cursor_cp < ti->scroll_off) {
+        ti->scroll_off = ti->cursor_cp;
+    } else if (ti->cursor_cp >= ti->scroll_off + visible_width) {
+        ti->scroll_off = ti->cursor_cp - visible_width + 1;
     }
 
-    // Fondo opaco base (garantiza que las celdas vacías no sean transparentes)
+    /* Background */
     unsigned int bg = ti->focused ? ti->bg_focused : ti->bg_normal;
     uint64_t base_channels = 0;
     ncchannels_set_bg_rgb(&base_channels, bg);
@@ -258,32 +430,72 @@ void tui_text_input_render(TuiTextInput* ti) {
     ncplane_set_base(ti->plane, " ", 0, base_channels);
     ncplane_erase(ti->plane);
 
-    // Borde visual sutil: [ texto ]
+    /* Border */
     ncplane_set_fg_rgb(ti->plane, THEME_FG_TAB_INA);
     ncplane_putstr_yx(ti->plane, 0, 0, "[");
     ncplane_putstr_yx(ti->plane, 0, (int)cols - 1, "]");
 
-    // Pintar los caracteres visibles
-    for (int i = 0; i < visible_width; i++) {
-        int buf_idx = ti->scroll_off + i;
-        if (buf_idx >= ti->len) break;
+    /* Selection range (normalized) */
+    int sel_start = -1, sel_end = -1;
+    if (ti->selecting) {
+        sel_start = ti->select_start_cp < ti->select_end_cp ? ti->select_start_cp : ti->select_end_cp;
+        sel_end = ti->select_start_cp < ti->select_end_cp ? ti->select_end_cp : ti->select_start_cp;
+    }
 
-        bool is_cursor = (buf_idx == ti->cursor);
+    /* Render visible codepoints using display width */
+    int screen_col = 0;
+    for (int cp_i = ti->scroll_off; cp_i < ti->len_codepoints && screen_col < visible_width; ) {
+        int buf_byte = utf8_cp_to_byte_offset(ti->buffer, cp_i);
+        const char* cp_ptr = ti->buffer + buf_byte;
+        uint32_t cp = utf8_decode(&cp_ptr);
+        int cp_width = (cp >= 0x1100 && cp <= 0x115F) ||
+                       (cp >= 0x2E80 && cp <= 0x9FFF) ||
+                       (cp >= 0xAC00 && cp <= 0xD7AF) ||
+                       (cp >= 0xF900 && cp <= 0xFAFF) ||
+                       (cp >= 0x1F300 && cp <= 0x1F9FF) ? 2 : 1;
 
-        if (is_cursor && ti->focused) {
-            ncplane_set_bg_rgb(ti->plane, ti->fg_cursor); // cursor block
+        if (screen_col + cp_width > visible_width) break; /* Don't partially draw */
+
+        bool in_selection = (sel_start >= 0 && cp_i >= sel_start && cp_i < sel_end);
+
+        if (in_selection) {
+            ncplane_set_bg_rgb(ti->plane, ti->fg_normal);
+            ncplane_set_fg_rgb(ti->plane, bg);
+        } else if (cp_i == ti->cursor_cp && ti->focused) {
+            ncplane_set_bg_rgb(ti->plane, ti->fg_cursor);
             ncplane_set_fg_rgb(ti->plane, ti->bg_normal);
         } else {
             ncplane_set_bg_rgb(ti->plane, bg);
             ncplane_set_fg_rgb(ti->plane, ti->fg_normal);
         }
-        ncplane_putchar_yx(ti->plane, 0, 1 + i, ti->buffer[buf_idx]);
+
+        /* Copy the codepoint bytes into a null-terminated buffer for putegc */
+        char cp_buf[8];
+        int cp_byte_len = (int)(cp_ptr - (ti->buffer + buf_byte));
+        memcpy(cp_buf, ti->buffer + buf_byte, (size_t)cp_byte_len);
+        cp_buf[cp_byte_len] = '\0';
+        ncplane_putstr_yx(ti->plane, 0, 1 + screen_col, cp_buf);
+
+        screen_col += cp_width;
+        cp_i++;
     }
 
-    // Cursor al final si está después del último carácter
+    /* Draw cursor at end if cursor is at end of text */
     if (ti->focused) {
-        int screen_cursor = ti->cursor - ti->scroll_off;
-        if (screen_cursor >= 0 && screen_cursor < visible_width && ti->cursor == ti->len) {
+        int screen_cursor = 0;
+        for (int cp_i = ti->scroll_off; cp_i < ti->cursor_cp; ) {
+            int buf_byte = utf8_cp_to_byte_offset(ti->buffer, cp_i);
+            const char* cp_ptr = ti->buffer + buf_byte;
+            uint32_t cp = utf8_decode(&cp_ptr);
+            int cp_width = (cp >= 0x1100 && cp <= 0x115F) ||
+                           (cp >= 0x2E80 && cp <= 0x9FFF) ||
+                           (cp >= 0xAC00 && cp <= 0xD7AF) ||
+                           (cp >= 0xF900 && cp <= 0xFAFF) ||
+                           (cp >= 0x1F300 && cp <= 0x1F9FF) ? 2 : 1;
+            screen_cursor += cp_width;
+            cp_i++;
+        }
+        if (screen_cursor >= 0 && screen_cursor < visible_width && ti->cursor_cp == ti->len_codepoints) {
             ncplane_set_bg_rgb(ti->plane, ti->fg_cursor);
             ncplane_set_fg_rgb(ti->plane, ti->bg_normal);
             ncplane_putchar_yx(ti->plane, 0, 1 + screen_cursor, ' ');
@@ -306,10 +518,28 @@ bool tui_text_input_handle_mouse(TuiTextInput* ti, uint32_t key, const struct nc
     if (local_y < 0 || local_y >= (int)rows || local_x < 0 || local_x >= (int)cols) return false;
 
     /* Calculate cursor position from click. Text starts at x=1 (after "[" border). */
-    int buf_pos = local_x - 1 + ti->scroll_off;
-    if (buf_pos < 0) buf_pos = 0;
-    if (buf_pos > ti->len) buf_pos = ti->len;
-    ti->cursor = buf_pos;
+    int click_screen_col = local_x - 1;
+    if (click_screen_col < 0) click_screen_col = 0;
+
+    /* Map screen column back to codepoint index */
+    int cp_i = ti->scroll_off;
+    int screen_col = 0;
+    while (cp_i < ti->len_codepoints && screen_col < click_screen_col) {
+        int buf_byte = utf8_cp_to_byte_offset(ti->buffer, cp_i);
+        const char* cp_ptr = ti->buffer + buf_byte;
+        uint32_t cp = utf8_decode(&cp_ptr);
+        int cp_width = (cp >= 0x1100 && cp <= 0x115F) ||
+                       (cp >= 0x2E80 && cp <= 0x9FFF) ||
+                       (cp >= 0xAC00 && cp <= 0xD7AF) ||
+                       (cp >= 0xF900 && cp <= 0xFAFF) ||
+                       (cp >= 0x1F300 && cp <= 0x1F9FF) ? 2 : 1;
+        if (screen_col + cp_width > click_screen_col) break;
+        screen_col += cp_width;
+        cp_i++;
+    }
+
+    clear_selection(ti);
+    ti->cursor_cp = cp_i;
     ti->focused = true;
     tui_text_input_render(ti);
     return true;

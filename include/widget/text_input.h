@@ -15,11 +15,15 @@ typedef void (*TextInputSubmitCb)(const char* text, void* userdata);
 
 typedef struct TuiTextInput {
     struct ncplane*    plane;
-    char               buffer[TEXT_INPUT_MAX_LEN];
-    int                cursor;
-    int                len;
-    int                scroll_off;
+    char               buffer[TEXT_INPUT_MAX_LEN * 4];  /* UTF-8: up to 4 bytes per codepoint */
+    int                len_bytes;       /* Actual byte length of buffer */
+    int                len_codepoints;  /* Number of Unicode codepoints */
+    int                cursor_cp;       /* Cursor position in codepoints */
+    int                scroll_off;      /* Scroll offset in codepoints */
     bool               focused;
+    bool               selecting;
+    int                select_start_cp;
+    int                select_end_cp;
 
     TextInputSubmitCb  on_submit;
     void*              userdata;
@@ -90,7 +94,7 @@ int tui_text_input_get_cursor(const TuiTextInput* ti);
 /**
  * @brief Get the current text length.
  * @param ti Text input instance, or NULL.
- * @return Number of characters in the buffer, or 0 if ti is NULL.
+ * @return Number of codepoints in the buffer, or 0 if ti is NULL.
  */
 int tui_text_input_get_len(const TuiTextInput* ti);
 
@@ -100,6 +104,22 @@ int tui_text_input_get_len(const TuiTextInput* ti);
  * @return true if focused, false otherwise.
  */
 bool tui_text_input_is_focused(const TuiTextInput* ti);
+
+/**
+ * @brief Check if there is an active text selection.
+ * @param ti Text input instance, or NULL.
+ * @return true if selecting, false otherwise.
+ */
+bool tui_text_input_is_selecting(const TuiTextInput* ti);
+
+/**
+ * @brief Get the current selection range.
+ * @param ti Text input instance, or NULL.
+ * @param out_start Output for selection start (codepoint index).
+ * @param out_end Output for selection end (codepoint index).
+ * @return true if selection is active, false otherwise.
+ */
+bool tui_text_input_get_selection(const TuiTextInput* ti, int* out_start, int* out_end);
 
 /* Clipboard integration */
 bool tui_text_input_copy(TuiTextInput* ti);

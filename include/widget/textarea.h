@@ -12,14 +12,19 @@
  */
 typedef struct TuiTextArea {
     struct ncplane* plane;
-    char lines[TEXTAREA_MAX_LINES][TEXTAREA_MAX_LINE_LEN];
+    char lines[TEXTAREA_MAX_LINES][TEXTAREA_MAX_LINE_LEN * 4];  /* UTF-8 */
+    int line_len_bytes[TEXTAREA_MAX_LINES];    /* byte length per line */
+    int line_len_codepoints[TEXTAREA_MAX_LINES]; /* codepoint count per line */
     int line_count;
     int cursor_line;
-    int cursor_col;
+    int cursor_col;       /* cursor in codepoints within current line */
     int scroll_line;
-    int scroll_col;
+    int scroll_col;       /* scroll offset in codepoints */
     int height;
     bool focused;
+    bool selecting;
+    int select_start_col;
+    int select_end_col;
     unsigned bg_normal;
     unsigned bg_focused;
     unsigned fg_text;

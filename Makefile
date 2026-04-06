@@ -144,7 +144,7 @@ $(BUILD_DIR)/test_%_runner: tests/test_%.c $(filter-out $(BUILD_DIR)/main.o $(BU
 TAB_WS_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/layout.c src/core/widget.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
 
 # Widget sources needed when manager/input.c references widget mouse handlers
-WIDGET_MOUSE_SRCS = src/widget/button.c src/widget/checkbox.c src/widget/list.c src/widget/context_menu.c src/widget/textarea.c src/widget/text_input.c src/core/widget.c
+WIDGET_MOUSE_SRCS = src/widget/button.c src/widget/checkbox.c src/widget/list.c src/widget/context_menu.c src/widget/textarea.c src/widget/text_input.c src/core/widget.c src/core/utf8.c
 
 $(BUILD_DIR)/test_tab_runner: tests/test_tab.c
 	@mkdir -p $(dir $@)
@@ -191,17 +191,17 @@ $(BUILD_DIR)/test_integration_runner: tests/test_integration.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_integration.c $(MANAGER_FULL_CORE_SRCS) $(WIDGET_MOUSE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
 
-# Text input tests: widget + logger + stubs
+# Text input tests: widget + logger + stubs + utf8
 $(BUILD_DIR)/test_text_input_runner: tests/test_text_input.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ tests/test_text_input.c src/widget/text_input.c src/core/widget.c src/core/logger.c src/core/clipboard.c tests/nc_stubs.c -Iinclude -g -lpthread
+	$(CC) $(CFLAGS) -o $@ tests/test_text_input.c src/widget/text_input.c src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c tests/nc_stubs.c -Iinclude -g -lpthread
 
 # Widgets tests: all 6 new widgets + logger + stubs + math + widget.c for VTable
 WIDGET_SRCS = src/widget/label.c src/widget/button.c src/widget/progress.c src/widget/list.c src/widget/textarea.c src/widget/checkbox.c src/widget/context_menu.c
 
 $(BUILD_DIR)/test_widgets_runner: tests/test_widgets.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ tests/test_widgets.c $(WIDGET_SRCS) src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread -lm
+	$(CC) $(CFLAGS) -o $@ tests/test_widgets.c $(WIDGET_SRCS) src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c tests/nc_stubs.c -Iinclude -g -lpthread -lm
 
 # Context menu tests: context_menu widget + logger + stubs + widget.c for VTable
 $(BUILD_DIR)/test_context_menu_runner: tests/test_context_menu.c
@@ -213,7 +213,7 @@ LAYOUT_WIDGET_SRCS = src/widget/label.c src/widget/button.c src/widget/progress.
 
 $(BUILD_DIR)/test_layout_runner: tests/test_layout.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ tests/test_layout.c src/core/layout.c $(LAYOUT_WIDGET_SRCS) src/core/widget.c src/core/logger.c src/core/clipboard.c tests/nc_stubs.c -Iinclude -g -lpthread -lm
+	$(CC) $(CFLAGS) -o $@ tests/test_layout.c src/core/layout.c $(LAYOUT_WIDGET_SRCS) src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c tests/nc_stubs.c -Iinclude -g -lpthread -lm
 
 # Logger tests don't need stubs (pure C, no notcurses)
 $(BUILD_DIR)/test_logger_runner: tests/test_logger.c $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o,$(OBJS))
@@ -233,6 +233,11 @@ $(BUILD_DIR)/test_theme_loader_runner: tests/test_theme_loader.c src/core/theme_
 $(BUILD_DIR)/test_clipboard_runner: tests/test_clipboard.c src/core/clipboard.c src/core/logger.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_clipboard.c src/core/clipboard.c src/core/logger.c -Iinclude -g -lpthread
+
+# UTF-8 tests: pure C (no stubs needed)
+$(BUILD_DIR)/test_utf8_runner: tests/test_utf8.c src/core/utf8.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_utf8.c src/core/utf8.c -Iinclude -g -lpthread
 
 # Render benchmark: uses logger + core types (no notcurses stubs needed)
 $(BUILD_DIR)/benchmark_render_runner: tests/benchmark_render.c src/core/logger.c

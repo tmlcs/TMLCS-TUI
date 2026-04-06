@@ -72,8 +72,8 @@ void tearDown(void) {
 void test_text_input_create_success(void) {
     TuiTextInput* ti = tui_text_input_create((struct ncplane*)0xDEAD, 5, 10, 40, NULL, NULL);
     TEST_ASSERT_NOT_NULL(ti);
-    TEST_ASSERT_EQUAL_INT(0, ti->cursor);
-    TEST_ASSERT_EQUAL_INT(0, ti->len);
+    TEST_ASSERT_EQUAL_INT(0, ti->cursor_cp);
+    TEST_ASSERT_EQUAL_INT(0, ti->len_codepoints);
     TEST_ASSERT_EQUAL_INT(0, ti->scroll_off);
     TEST_ASSERT_FALSE(ti->focused);
     tui_text_input_destroy(ti);
@@ -134,13 +134,13 @@ void test_text_input_clear_resets_all(void) {
     tui_text_input_handle_key(ti, 'b', &ni);
     ni = make_ncinput('c', NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, 'c', &ni);
-    TEST_ASSERT_EQUAL_INT(3, ti->cursor);
-    TEST_ASSERT_EQUAL_INT(3, ti->len);
+    TEST_ASSERT_EQUAL_INT(3, ti->cursor_cp);
+    TEST_ASSERT_EQUAL_INT(3, ti->len_codepoints);
 
     tui_text_input_clear(ti);
     TEST_ASSERT_EQUAL_INT('\0', ti->buffer[0]);
-    TEST_ASSERT_EQUAL_INT(0, ti->cursor);
-    TEST_ASSERT_EQUAL_INT(0, ti->len);
+    TEST_ASSERT_EQUAL_INT(0, ti->cursor_cp);
+    TEST_ASSERT_EQUAL_INT(0, ti->len_codepoints);
     TEST_ASSERT_EQUAL_INT(0, ti->scroll_off);
     tui_text_input_destroy(ti);
 }
@@ -160,8 +160,8 @@ void test_text_input_insert_single_char(void) {
     struct ncinput ni = make_ncinput('a', NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, 'a', &ni);
     TEST_ASSERT_EQUAL_STRING("a", tui_text_input_get(ti));
-    TEST_ASSERT_EQUAL_INT(1, ti->len);
-    TEST_ASSERT_EQUAL_INT(1, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(1, ti->len_codepoints);
+    TEST_ASSERT_EQUAL_INT(1, ti->cursor_cp);
     tui_text_input_destroy(ti);
 }
 
@@ -176,8 +176,8 @@ void test_text_input_insert_multiple_chars(void) {
     ni = make_ncinput('c', NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, 'c', &ni);
     TEST_ASSERT_EQUAL_STRING("abc", tui_text_input_get(ti));
-    TEST_ASSERT_EQUAL_INT(3, ti->len);
-    TEST_ASSERT_EQUAL_INT(3, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(3, ti->len_codepoints);
+    TEST_ASSERT_EQUAL_INT(3, ti->cursor_cp);
     tui_text_input_destroy(ti);
 }
 
@@ -192,12 +192,12 @@ void test_text_input_insert_at_cursor_mid(void) {
     /* cursor is at 2, move left to 1 */
     ni = make_ncinput(NCKEY_LEFT, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_LEFT, &ni);
-    TEST_ASSERT_EQUAL_INT(1, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(1, ti->cursor_cp);
     /* insert 'b' at cursor position 1 */
     ni = make_ncinput('b', NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, 'b', &ni);
     TEST_ASSERT_EQUAL_STRING("abc", tui_text_input_get(ti));
-    TEST_ASSERT_EQUAL_INT(2, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(2, ti->cursor_cp);
     tui_text_input_destroy(ti);
 }
 
@@ -242,11 +242,11 @@ void test_text_input_cursor_left(void) {
     tui_text_input_handle_key(ti, 'b', &ni);
     ni = make_ncinput('c', NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, 'c', &ni);
-    TEST_ASSERT_EQUAL_INT(3, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(3, ti->cursor_cp);
 
     ni = make_ncinput(NCKEY_LEFT, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_LEFT, &ni);
-    TEST_ASSERT_EQUAL_INT(2, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(2, ti->cursor_cp);
     tui_text_input_destroy(ti);
 }
 
@@ -256,15 +256,15 @@ void test_text_input_cursor_left_at_zero(void) {
     struct ncinput ni;
     ni = make_ncinput('a', NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, 'a', &ni);
-    TEST_ASSERT_EQUAL_INT(1, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(1, ti->cursor_cp);
 
     ni = make_ncinput(NCKEY_LEFT, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_LEFT, &ni);
-    TEST_ASSERT_EQUAL_INT(0, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(0, ti->cursor_cp);
 
     ni = make_ncinput(NCKEY_LEFT, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_LEFT, &ni);
-    TEST_ASSERT_EQUAL_INT(0, ti->cursor);  /* clamped */
+    TEST_ASSERT_EQUAL_INT(0, ti->cursor_cp);  /* clamped */
     tui_text_input_destroy(ti);
 }
 
@@ -283,11 +283,11 @@ void test_text_input_cursor_right(void) {
     tui_text_input_handle_key(ti, NCKEY_LEFT, &ni);
     ni = make_ncinput(NCKEY_LEFT, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_LEFT, &ni);
-    TEST_ASSERT_EQUAL_INT(1, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(1, ti->cursor_cp);
 
     ni = make_ncinput(NCKEY_RIGHT, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_RIGHT, &ni);
-    TEST_ASSERT_EQUAL_INT(2, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(2, ti->cursor_cp);
     tui_text_input_destroy(ti);
 }
 
@@ -301,11 +301,11 @@ void test_text_input_cursor_right_at_end(void) {
     tui_text_input_handle_key(ti, 'b', &ni);
     ni = make_ncinput('c', NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, 'c', &ni);
-    TEST_ASSERT_EQUAL_INT(3, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(3, ti->cursor_cp);
 
     ni = make_ncinput(NCKEY_RIGHT, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_RIGHT, &ni);
-    TEST_ASSERT_EQUAL_INT(3, ti->cursor);  /* clamped */
+    TEST_ASSERT_EQUAL_INT(3, ti->cursor_cp);  /* clamped */
     tui_text_input_destroy(ti);
 }
 
@@ -323,14 +323,14 @@ void test_text_input_backspace_deletes_char(void) {
     tui_text_input_handle_key(ti, 'b', &ni);
     ni = make_ncinput('c', NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, 'c', &ni);
-    TEST_ASSERT_EQUAL_INT(3, ti->cursor);
-    TEST_ASSERT_EQUAL_INT(3, ti->len);
+    TEST_ASSERT_EQUAL_INT(3, ti->cursor_cp);
+    TEST_ASSERT_EQUAL_INT(3, ti->len_codepoints);
 
     ni = make_ncinput(NCKEY_BACKSPACE, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_BACKSPACE, &ni);
     TEST_ASSERT_EQUAL_STRING("ab", tui_text_input_get(ti));
-    TEST_ASSERT_EQUAL_INT(2, ti->cursor);
-    TEST_ASSERT_EQUAL_INT(2, ti->len);
+    TEST_ASSERT_EQUAL_INT(2, ti->cursor_cp);
+    TEST_ASSERT_EQUAL_INT(2, ti->len_codepoints);
     tui_text_input_destroy(ti);
 }
 
@@ -343,13 +343,13 @@ void test_text_input_backspace_at_start(void) {
     /* move cursor to 0 */
     ni = make_ncinput(NCKEY_LEFT, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_LEFT, &ni);
-    TEST_ASSERT_EQUAL_INT(0, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(0, ti->cursor_cp);
 
     ni = make_ncinput(NCKEY_BACKSPACE, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_BACKSPACE, &ni);
     TEST_ASSERT_EQUAL_STRING("a", tui_text_input_get(ti));
-    TEST_ASSERT_EQUAL_INT(0, ti->cursor);
-    TEST_ASSERT_EQUAL_INT(1, ti->len);
+    TEST_ASSERT_EQUAL_INT(0, ti->cursor_cp);
+    TEST_ASSERT_EQUAL_INT(1, ti->len_codepoints);
     tui_text_input_destroy(ti);
 }
 
@@ -366,13 +366,13 @@ void test_text_input_backspace_mid_text(void) {
     /* move left to cursor=2 */
     ni = make_ncinput(NCKEY_LEFT, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_LEFT, &ni);
-    TEST_ASSERT_EQUAL_INT(2, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(2, ti->cursor_cp);
 
     ni = make_ncinput(NCKEY_BACKSPACE, NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, NCKEY_BACKSPACE, &ni);
     TEST_ASSERT_EQUAL_STRING("ac", tui_text_input_get(ti));
-    TEST_ASSERT_EQUAL_INT(1, ti->cursor);
-    TEST_ASSERT_EQUAL_INT(2, ti->len);
+    TEST_ASSERT_EQUAL_INT(1, ti->cursor_cp);
+    TEST_ASSERT_EQUAL_INT(2, ti->len_codepoints);
     tui_text_input_destroy(ti);
 }
 
@@ -480,8 +480,8 @@ void test_text_input_handle_mouse_click_sets_cursor(void) {
         ni = make_ncinput("hello"[i], NCTYPE_UNKNOWN);
         tui_text_input_handle_key(ti, "hello"[i], &ni);
     }
-    TEST_ASSERT_EQUAL_INT(5, ti->len);
-    TEST_ASSERT_EQUAL_INT(5, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(5, ti->len_codepoints);
+    TEST_ASSERT_EQUAL_INT(5, ti->cursor_cp);
 
     /* Click at position to move cursor to index 2 */
     /* ncplane is at default (0,0), text starts at x=1, so click at x=3 => buf_pos=2 */
@@ -491,7 +491,7 @@ void test_text_input_handle_mouse_click_sets_cursor(void) {
     ni.x = 3;
     bool result = tui_text_input_handle_mouse(ti, NCKEY_BUTTON1, &ni);
     TEST_ASSERT_TRUE(result);
-    TEST_ASSERT_EQUAL_INT(2, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(2, ti->cursor_cp);
     tui_text_input_destroy(ti);
 }
 
@@ -502,14 +502,14 @@ void test_text_input_handle_mouse_click_at_start(void) {
     tui_text_input_handle_key(ti, 'a', &ni);
     tui_text_input_handle_key(ti, 'b', &ni);
     tui_text_input_handle_key(ti, 'c', &ni);
-    TEST_ASSERT_EQUAL_INT(3, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(3, ti->cursor_cp);
 
     /* Click at x=1 (after "[" border, scroll_off=0) => buf_pos=0 */
     stub_set_default_plane_position(0, 0);
     ni = make_ncinput(NCKEY_BUTTON1, NCTYPE_PRESS);
     ni.y = 0; ni.x = 1;
     tui_text_input_handle_mouse(ti, NCKEY_BUTTON1, &ni);
-    TEST_ASSERT_EQUAL_INT(0, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(0, ti->cursor_cp);
     tui_text_input_destroy(ti);
 }
 
@@ -518,14 +518,14 @@ void test_text_input_handle_mouse_click_past_end(void) {
     ti->focused = true;
     struct ncinput ni = make_ncinput('x', NCTYPE_UNKNOWN);
     tui_text_input_handle_key(ti, 'x', &ni);
-    TEST_ASSERT_EQUAL_INT(1, ti->len);
+    TEST_ASSERT_EQUAL_INT(1, ti->len_codepoints);
 
     /* Click at x=50 (way past text) => cursor clamped to len=1 */
     stub_set_default_plane_position(0, 0);
     ni = make_ncinput(NCKEY_BUTTON1, NCTYPE_PRESS);
     ni.y = 0; ni.x = 50;
     tui_text_input_handle_mouse(ti, NCKEY_BUTTON1, &ni);
-    TEST_ASSERT_EQUAL_INT(1, ti->cursor);
+    TEST_ASSERT_EQUAL_INT(1, ti->cursor_cp);
     tui_text_input_destroy(ti);
 }
 

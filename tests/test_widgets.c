@@ -450,6 +450,8 @@ void test_textarea_get_single_line(void) {
     strncpy(ta->lines[0], "hello", TEXTAREA_MAX_LINE_LEN - 1);
     ta->line_count = 1;
     ta->lines[0][5] = '\0';
+    ta->line_len_bytes[0] = 5;
+    ta->line_len_codepoints[0] = 5;
 
     char buf[64];
     int n = tui_textarea_get(ta, buf, sizeof(buf));
@@ -463,6 +465,10 @@ void test_textarea_get_multi_line(void) {
     strncpy(ta->lines[0], "hi", TEXTAREA_MAX_LINE_LEN - 1);
     strncpy(ta->lines[1], "bye", TEXTAREA_MAX_LINE_LEN - 1);
     ta->line_count = 2;
+    ta->line_len_bytes[0] = 2;
+    ta->line_len_codepoints[0] = 2;
+    ta->line_len_bytes[1] = 3;
+    ta->line_len_codepoints[1] = 3;
 
     char buf[64];
     int n = tui_textarea_get(ta, buf, sizeof(buf));
@@ -484,6 +490,8 @@ void test_textarea_get_buffer_overflow(void) {
     TuiTextArea* ta = tui_textarea_create(dummy_parent(), 0, 0, 40, 5);
     strncpy(ta->lines[0], "aaaaaaaaaa", TEXTAREA_MAX_LINE_LEN - 1);
     ta->line_count = 1;
+    ta->line_len_bytes[0] = 10;
+    ta->line_len_codepoints[0] = 10;
 
     char small_buf[4];
     int n = tui_textarea_get(ta, small_buf, sizeof(small_buf));
