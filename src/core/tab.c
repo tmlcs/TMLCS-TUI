@@ -1,6 +1,7 @@
 #include "core/tab.h"
 #include "core/window.h"
 #include "core/logger.h"
+#include "core/manager.h"
 #include "core/theme.h"
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +20,7 @@ TuiTab* tui_tab_create(TuiWorkspace* ws, const char* name) {
         tui_log(LOG_ERROR, "OOM en tui_tab_create");
         return NULL;
     }
-    tab->id = s_next_id++;
+    tab->id = tui_next_id();
     strncpy(tab->name, name, sizeof(tab->name)-1);
     tab->name[sizeof(tab->name)-1] = '\0'; // Null-terminate explicitly
     

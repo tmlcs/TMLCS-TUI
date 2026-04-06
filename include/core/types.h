@@ -60,6 +60,4 @@ typedef struct TuiManager {
     int resize_start_mouse_x;
 } TuiManager;
 
-extern int s_next_id;
-
 #endif // CORE_TYPES_H

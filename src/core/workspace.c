@@ -1,5 +1,6 @@
 #include "core/workspace.h"
 #include "core/logger.h"
+#include "core/manager.h"
 #include "core/tab.h"
 #include "core/theme.h"
 #include <stdlib.h>
@@ -19,7 +20,7 @@ TuiWorkspace* tui_workspace_create(TuiManager* manager, const char* name) {
         tui_log(LOG_ERROR, "OOM en tui_workspace_create");
         return NULL;
     }
-    ws->id = s_next_id++;
+    ws->id = tui_next_id();
     strncpy(ws->name, name, sizeof(ws->name)-1);
     ws->name[sizeof(ws->name)-1] = '\0'; // Null-terminate explicitly
     
@@ -103,4 +104,18 @@ void tui_workspace_remove_active_tab(TuiWorkspace* ws) {
     if (ws->tab_count > 0) {
         tui_workspace_set_active_tab(ws, ws->tab_count - 1);
     }
+}
+
+// Getters
+
+const char* tui_workspace_get_name(const TuiWorkspace* ws) {
+    return ws ? ws->name : NULL;
+}
+
+int tui_workspace_get_id(const TuiWorkspace* ws) {
+    return ws ? ws->id : -1;
+}
+
+int tui_workspace_get_tab_count(const TuiWorkspace* ws) {
+    return ws ? ws->tab_count : 0;
 }
