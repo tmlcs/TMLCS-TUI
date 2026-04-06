@@ -23,11 +23,35 @@ ALL_OBJS := $(OBJS) $(EXAMPLE_OBJS)
 
 TARGET = mi_tui
 
-.PHONY: all clean run test asan ubsan coverage tidy valgrind
+# ============================================
+# Library targets
+# ============================================
+LIB_STATIC = libtmlcs_tui.a
+LIB_SHARED = libtmlcs_tui.so
+
+# ============================================
+# Installation
+# ============================================
+PREFIX ?= /usr/local
+INSTALL_DIR = $(PREFIX)/include/tmlcs-tui
+
+.PHONY: all clean run test asan ubsan coverage tidy valgrind install uninstall lib shared docs fmt
 
 all: $(TARGET)
 
-$(TARGET): $(ALL_OBJS)
+lib: $(LIB_STATIC)
+
+$(LIB_STATIC): $(OBJS)
+	ar rcs $@ $^
+
+shared: CFLAGS += -fPIC
+shared: LDFLAGS += -shared
+shared: $(LIB_SHARED)
+
+$(LIB_SHARED): $(OBJS)
+	$(CC) -shared -o $@ $^ $(LDFLAGS)
+
+$(TARGET): $(OBJS) $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
@@ -37,6 +61,45 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 $(BUILD_DIR)/examples/%.o: $(EXAMPLES_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
+
+# Hello world example
+$(BUILD_DIR)/examples/hello_world.o: examples/hello_world.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/examples/hello_world: $(BUILD_DIR)/examples/hello_world.o $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o,$(OBJS))
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+.PHONY: hello
+hello: build/examples/hello_world
+	./build/examples/hello_world
+
+# Tabs demo example
+$(BUILD_DIR)/examples/tabs_demo.o: examples/tabs_demo.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/examples/tabs_demo: $(BUILD_DIR)/examples/tabs_demo.o $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o,$(OBJS))
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+.PHONY: tabs-demo
+tabs-demo: build/examples/tabs_demo
+	./build/examples/tabs_demo
+
+# Text input demo example
+$(BUILD_DIR)/examples/text_input_demo.o: examples/text_input_demo.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/examples/text_input_demo: $(BUILD_DIR)/examples/text_input_demo.o $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o,$(OBJS))
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+.PHONY: text-input-demo
+text-input-demo: build/examples/text_input_demo
+	./build/examples/text_input_demo
 
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
@@ -78,7 +141,7 @@ $(BUILD_DIR)/test_%_runner: tests/test_%.c $(filter-out $(BUILD_DIR)/main.o $(BU
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Tab and workspace tests: compile core sources directly with stubs (no notcurses link)
-TAB_WS_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/state.c src/core/manager/utils.c
+TAB_WS_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
 
 $(BUILD_DIR)/test_tab_runner: tests/test_tab.c
 	@mkdir -p $(dir $@)
@@ -87,6 +150,55 @@ $(BUILD_DIR)/test_tab_runner: tests/test_tab.c
 $(BUILD_DIR)/test_workspace_runner: tests/test_workspace.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_workspace.c $(TAB_WS_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
+
+$(BUILD_DIR)/test_window_runner: tests/test_window.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_window.c $(TAB_WS_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
+
+# Manager state tests: core sources + stubs
+$(BUILD_DIR)/test_manager_state_runner: tests/test_manager_state.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_manager_state.c $(TAB_WS_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
+
+# Manager input tests: core sources (including manager/input.c) + stubs
+MANAGER_INPUT_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/input.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
+
+$(BUILD_DIR)/test_manager_input_runner: tests/test_manager_input.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_manager_input.c $(MANAGER_INPUT_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
+
+# Manager render tests: core sources (including manager/render.c) + stubs
+MANAGER_RENDER_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/render.c src/core/manager/state.c src/core/manager/utils.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
+
+$(BUILD_DIR)/test_manager_render_runner: tests/test_manager_render.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_manager_render.c $(MANAGER_RENDER_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
+
+# Manager utils tests: core sources + stubs
+MANAGER_UTILS_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
+
+$(BUILD_DIR)/test_manager_utils_runner: tests/test_manager_utils.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_manager_utils.c $(MANAGER_UTILS_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
+
+# Integration tests: full cross-module lifecycle with widget + manager input/render
+MANAGER_FULL_CORE_SRCS = src/core/logger.c src/core/tab.c src/core/workspace.c src/core/window.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/input.c src/core/manager/render.c src/core/theme_loader.c src/core/help.c src/core/clipboard.c
+
+$(BUILD_DIR)/test_integration_runner: tests/test_integration.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_integration.c $(MANAGER_FULL_CORE_SRCS) src/widget/text_input.c tests/nc_stubs.c -Iinclude -g -lpthread
+
+# Text input tests: widget + logger + stubs
+$(BUILD_DIR)/test_text_input_runner: tests/test_text_input.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_text_input.c src/widget/text_input.c src/core/logger.c src/core/clipboard.c tests/nc_stubs.c -Iinclude -g -lpthread
+
+# Widgets tests: all 6 new widgets + logger + stubs + math
+WIDGET_SRCS = src/widget/label.c src/widget/button.c src/widget/progress.c src/widget/list.c src/widget/textarea.c src/widget/checkbox.c src/widget/context_menu.c
+
+$(BUILD_DIR)/test_widgets_runner: tests/test_widgets.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_widgets.c $(WIDGET_SRCS) src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread -lm
 
 # Logger tests don't need stubs (pure C, no notcurses)
 $(BUILD_DIR)/test_logger_runner: tests/test_logger.c $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o,$(OBJS))
@@ -122,11 +234,11 @@ SAN_LDFLAGS = -fsanitize=address,undefined
 
 asan: CFLAGS += $(SAN_CFLAGS)
 asan: LDFLAGS += $(SAN_LDFLAGS)
-asan: clean all test
+asan: clean all test-all
 
 ubsan: CFLAGS += -fsanitize=undefined -fno-omit-frame-pointer -g -O1
 ubsan: LDFLAGS += -fsanitize=undefined
-ubsan: clean all test
+ubsan: clean all test-all
 
 # ============================================
 # Code coverage
@@ -138,7 +250,7 @@ COV_LDFLAGS = --coverage
 
 coverage: CFLAGS += $(COV_CFLAGS)
 coverage: LDFLAGS += $(COV_LDFLAGS)
-coverage: clean all test
+coverage: clean all test-all
 	@echo "Generating coverage report..."
 	lcov --capture --directory . --output-file build/coverage.info --no-external --quiet
 	lcov --remove build/coverage.info '/usr/*' '*/tests/*' --output-file build/coverage_filtered.info --quiet
@@ -175,9 +287,67 @@ VALGRIND_OPTS = --leak-check=full \
 
 .PHONY: valgrind
 
-valgrind: all test
-	@echo "Running valgrind on test_runner..."
+valgrind: all test-all
+	@echo "Running valgrind on all test runners..."
 	@mkdir -p build
-	valgrind $(VALGRIND_OPTS) ./build/test_runner 2>build/valgrind_report.txt || \
-		{ echo "Valgrind detected memory errors!"; cat build/valgrind_report.txt; exit 1; }
+	@FAILED=0; \
+	for runner in $(TEST_RUNNERS); do \
+		echo "  Valgrind: $$runner"; \
+		valgrind $(VALGRIND_OPTS) ./$$runner 2>>build/valgrind_report.txt || FAILED=$$((FAILED+1)); \
+	done; \
+	if [ $$FAILED -gt 0 ]; then \
+		echo "Valgrind detected memory errors in $$FAILED suite(s)!"; \
+		cat build/valgrind_report.txt; exit 1; \
+	fi
 	@echo "Valgrind report: build/valgrind_report.txt"
+
+# ============================================
+# Documentation (Doxygen)
+# ============================================
+.PHONY: docs
+
+docs:
+	@echo "Generating Doxygen documentation..."
+	@doxygen Doxyfile 2>build/doxygen_warnings.txt || echo "Doxygen not found or failed"
+	@echo "Docs generated at docs/api/"
+
+# ============================================
+# Code formatting (clang-format)
+# ============================================
+FMT_FILES := $(shell find src include examples -name '*.c' -o -name '*.h' 2>/dev/null)
+
+.PHONY: fmt
+
+fmt:
+	@echo "Running clang-format..."
+	@clang-format -i $(FMT_FILES)
+	@echo "Formatting complete."
+
+# ============================================
+# Installation
+# ============================================
+.PHONY: install uninstall
+
+install: all
+	@echo "Installing tmlcs-tui to $(PREFIX)..."
+	@mkdir -p $(INSTALL_DIR)/core
+	@mkdir -p $(INSTALL_DIR)/widget
+	@mkdir -p $(PREFIX)/lib/pkgconfig
+	@install -m 644 include/core/types.h $(INSTALL_DIR)/core/
+	@install -m 644 include/core/theme.h $(INSTALL_DIR)/core/
+	@install -m 644 include/core/logger.h $(INSTALL_DIR)/core/
+	@install -m 644 include/core/manager.h $(INSTALL_DIR)/core/
+	@install -m 644 include/core/workspace.h $(INSTALL_DIR)/core/
+	@install -m 644 include/core/tab.h $(INSTALL_DIR)/core/
+	@install -m 644 include/core/window.h $(INSTALL_DIR)/core/
+	@install -m 644 include/widget/text_input.h $(INSTALL_DIR)/widget/
+	@install -m 644 tmlcs-tui.pc $(PREFIX)/lib/pkgconfig/
+	@echo "Installation complete."
+	@echo "  Headers: $(INSTALL_DIR)/"
+	@echo "  pkg-config: $(PREFIX)/lib/pkgconfig/tmlcs-tui.pc"
+
+uninstall:
+	@echo "Uninstalling tmlcs-tui from $(PREFIX)..."
+	@rm -rf $(INSTALL_DIR)
+	@rm -f $(PREFIX)/lib/pkgconfig/tmlcs-tui.pc
+	@echo "Uninstallation complete."

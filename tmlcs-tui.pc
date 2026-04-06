@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include/tmlcs-tui
+
+Name: tmlcs-tui
+Description: Terminal User Interface framework with Workspace-Tab-Window architecture
+Version: 0.4.0
+Requires: notcurses >= 3.0
+Libs: -L${libdir} -lnotcurses -lnotcurses-core -pthread
+Libs.private:
+Cflags: -I${includedir}
