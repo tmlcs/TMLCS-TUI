@@ -1,0 +1,113 @@
+#include "widget/context_menu.h"
+#include "core/theme.h"
+#include <stdlib.h>
+#include <string.h>
+
+TuiContextMenu* tui_menu_create(struct ncplane* parent, int y, int x, int width) {
+    if (!parent || width < 10) return NULL;
+    TuiContextMenu* menu = (TuiContextMenu*)calloc(1, sizeof(TuiContextMenu));
+    if (!menu) return NULL;
+
+    struct ncplane_options opts = {
+        .y = y, .x = x,
+        .rows = 1, .cols = (unsigned)width,
+    };
+    menu->plane = ncplane_create(parent, &opts);
+    if (!menu->plane) { free(menu); return NULL; }
+
+    menu->count = 0;
+    menu->selected = 0;
+    menu->visible = false;
+    menu->width = width;
+    menu->height = 0;
+    menu->bg_normal = THEME_BG_WINDOW;
+    menu->bg_selected = THEME_BG_TAB_ACTIVE;
+    menu->fg_text = THEME_FG_DEFAULT;
+    menu->fg_selected = THEME_FG_TAB_ACTIVE;
+
+    return menu;
+}
+
+void tui_menu_destroy(TuiContextMenu* menu) {
+    if (!menu) return;
+    for (int i = 0; i < menu->count; i++) free(menu->items[i]);
+    if (menu->plane) ncplane_destroy(menu->plane);
+    free(menu);
+}
+
+bool tui_menu_add_item(TuiContextMenu* menu, const char* label, TuiMenuCb cb, void* userdata) {
+    if (!menu || !label || menu->count >= CONTEXT_MENU_MAX_ITEMS) return false;
+    menu->items[menu->count] = strdup(label);
+    menu->callbacks[menu->count] = cb;
+    menu->userdatas[menu->count] = userdata;
+    menu->count++;
+    menu->height = menu->count;
+    return true;
+}
+
+void tui_menu_show(TuiContextMenu* menu) {
+    if (!menu || menu->count == 0) return;
+    menu->visible = true;
+    menu->selected = 0;
+    ncplane_resize_simple(menu->plane, (unsigned)menu->height, (unsigned)menu->width);
+    ncplane_move_top(menu->plane);
+    tui_menu_render(menu);
+}
+
+void tui_menu_hide(TuiContextMenu* menu) {
+    if (!menu) return;
+    menu->visible = false;
+}
+
+bool tui_menu_is_visible(const TuiContextMenu* menu) {
+    return menu ? menu->visible : false;
+}
+
+bool tui_menu_handle_key(TuiContextMenu* menu, uint32_t key, const struct ncinput* ni) {
+    if (!menu || !menu->visible || ni->evtype == NCTYPE_RELEASE) return false;
+
+    if (key == NCKEY_UP && menu->selected > 0) {
+        menu->selected--;
+        tui_menu_render(menu);
+        return true;
+    }
+    if (key == NCKEY_DOWN && menu->selected < menu->count - 1) {
+        menu->selected++;
+        tui_menu_render(menu);
+        return true;
+    }
+    if (key == NCKEY_ENTER || key == '\n' || key == '\r') {
+        if (menu->selected >= 0 && menu->selected < menu->count) {
+            if (menu->callbacks[menu->selected]) menu->callbacks[menu->selected](menu->userdatas[menu->selected]);
+        }
+        tui_menu_hide(menu);
+        return true;
+    }
+    if (key == 0x1B || key == 'q') {  /* 0x1B = Escape */
+        tui_menu_hide(menu);
+        return true;
+    }
+    return false;
+}
+
+void tui_menu_render(TuiContextMenu* menu) {
+    if (!menu || !menu->plane || !menu->visible) return;
+
+    uint64_t base = 0;
+    ncchannels_set_fg_rgb(&base, menu->fg_text);
+    ncchannels_set_bg_rgb(&base, menu->bg_normal);
+    ncchannels_set_bg_alpha(&base, NCALPHA_OPAQUE);
+    ncplane_set_base(menu->plane, " ", 0, base);
+    ncplane_erase(menu->plane);
+
+    for (int i = 0; i < menu->count; i++) {
+        if (i == menu->selected) {
+            ncplane_set_fg_rgb(menu->plane, menu->fg_selected);
+            ncplane_set_bg_rgb(menu->plane, menu->bg_selected);
+        } else {
+            ncplane_set_fg_rgb(menu->plane, menu->fg_text);
+            ncplane_set_bg_rgb(menu->plane, menu->bg_normal);
+        }
+        ncplane_putstr_yx(menu->plane, i, 1, menu->items[i]);
+    }
+}

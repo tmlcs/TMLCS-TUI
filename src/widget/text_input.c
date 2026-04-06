@@ -1,5 +1,6 @@
 #include "widget/text_input.h"
 #include "core/theme.h"
+#include "core/clipboard.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -52,6 +53,47 @@ const char* tui_text_input_get(TuiTextInput* ti) {
     return ti ? ti->buffer : NULL;
 }
 
+int tui_text_input_get_cursor(const TuiTextInput* ti) {
+    return ti ? ti->cursor : -1;
+}
+
+int tui_text_input_get_len(const TuiTextInput* ti) {
+    return ti ? ti->len : 0;
+}
+
+bool tui_text_input_is_focused(const TuiTextInput* ti) {
+    return ti ? ti->focused : false;
+}
+
+bool tui_text_input_copy(TuiTextInput* ti) {
+    if (!ti || ti->len == 0) return false;
+    return tui_clipboard_copy(ti->buffer);
+}
+
+bool tui_text_input_paste(TuiTextInput* ti) {
+    if (!ti) return false;
+    char buf[CLIPBOARD_MAX_LEN];
+    int len = tui_clipboard_paste(buf, sizeof(buf));
+    if (len <= 0) return false;
+    if (ti->len + len >= TEXT_INPUT_MAX_LEN - 1) return false;
+
+    memmove(&ti->buffer[ti->cursor + len],
+            &ti->buffer[ti->cursor],
+            (size_t)(ti->len - ti->cursor + 1));
+    memcpy(&ti->buffer[ti->cursor], buf, (size_t)len);
+    ti->cursor += len;
+    ti->len += len;
+    tui_text_input_render(ti);
+    return true;
+}
+
+bool tui_text_input_cut(TuiTextInput* ti) {
+    if (!ti || ti->len == 0) return false;
+    tui_clipboard_copy(ti->buffer);
+    tui_text_input_clear(ti);
+    return true;
+}
+
 bool tui_text_input_handle_key(TuiTextInput* ti, uint32_t key, const struct ncinput* ni) {
     if (!ti || !ti->focused) return false;
     if (ni->evtype == NCTYPE_RELEASE) return false;
@@ -85,6 +127,83 @@ bool tui_text_input_handle_key(TuiTextInput* ti, uint32_t key, const struct ncin
     if (key == NCKEY_RIGHT) {
         if (ti->cursor < ti->len) ti->cursor++;
         tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Home / Ctrl+A: move cursor to beginning */
+    if (key == NCKEY_HOME || (ni->ctrl && (key == 'a' || key == 'A'))) {
+        ti->cursor = 0;
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* End / Ctrl+E: move cursor to end */
+    if (key == NCKEY_END || (ni->ctrl && (key == 'e' || key == 'E'))) {
+        ti->cursor = ti->len;
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Ctrl+Left: jump word left */
+    if (ni->ctrl && key == NCKEY_LEFT) {
+        while (ti->cursor > 0 && ti->buffer[ti->cursor - 1] == ' ') ti->cursor--;
+        while (ti->cursor > 0 && ti->buffer[ti->cursor - 1] != ' ') ti->cursor--;
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Ctrl+Right: jump word right */
+    if (ni->ctrl && key == NCKEY_RIGHT) {
+        while (ti->cursor < ti->len && ti->buffer[ti->cursor] == ' ') ti->cursor++;
+        while (ti->cursor < ti->len && ti->buffer[ti->cursor] != ' ') ti->cursor++;
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Ctrl+K: cut from cursor to end */
+    if (ni->ctrl && (key == 'k' || key == 'K')) {
+        ti->buffer[ti->cursor] = '\0';
+        ti->len = ti->cursor;
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Ctrl+U: cut from beginning to cursor */
+    if (ni->ctrl && (key == 'u' || key == 'U')) {
+        memmove(ti->buffer, &ti->buffer[ti->cursor], (size_t)(ti->len - ti->cursor + 1));
+        ti->len -= ti->cursor;
+        ti->cursor = 0;
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Ctrl+W: delete word before cursor */
+    if (ni->ctrl && (key == 'w' || key == 'W')) {
+        int end = ti->cursor;
+        while (end > 0 && ti->buffer[end - 1] == ' ') end--;
+        while (end > 0 && ti->buffer[end - 1] != ' ') end--;
+        memmove(&ti->buffer[end], &ti->buffer[ti->cursor], (size_t)(ti->len - ti->cursor + 1));
+        ti->len -= (ti->cursor - end);
+        ti->cursor = end;
+        tui_text_input_render(ti);
+        return true;
+    }
+
+    /* Ctrl+C: copy */
+    if (ni->ctrl && (key == 'c' || key == 'C')) {
+        tui_text_input_copy(ti);
+        return true;
+    }
+
+    /* Ctrl+V: paste */
+    if (ni->ctrl && (key == 'v' || key == 'V')) {
+        tui_text_input_paste(ti);
+        return true;
+    }
+
+    /* Ctrl+X: cut all text */
+    if (ni->ctrl && (key == 'x' || key == 'X')) {
+        tui_text_input_cut(ti);
         return true;
     }
 
