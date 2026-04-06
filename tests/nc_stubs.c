@@ -26,10 +26,77 @@ typedef uint64_t uint64_t_;
 
 static char g_dummy_data[4096];
 
+/* Channel accessor stubs (required by notcurses inline functions) */
+uint64_t* ncplane_channels(struct ncplane* n) { (void)n; return (uint64_t*)g_dummy_data; }
+const char* ncplane_styles(struct ncplane* n) { (void)n; return g_dummy_data; }
+
+/* --- Stub extensions for testing --- */
+
+/* Forward declarations */
+void ncplane_create_set_fail_count(int n);
+void notcurses_stdplane_set_fail(int fail);
+void stub_reset_counters(void);
+int stub_get_resize_count(void);
+int stub_get_move_count(void);
+int stub_get_move_top_count(void);
+
+/* ncplane_create failure counter */
+static int g_ncplane_create_fail_count = 0;
+void ncplane_create_set_fail_count(int n) { g_ncplane_create_fail_count = n; }
+
+/* notcurses_stdplane failure control */
+static int g_stdplane_fail = 0;
+void notcurses_stdplane_set_fail(int fail) { g_stdplane_fail = fail; }
+
+/* Call counters */
+static int g_ncplane_resize_simple_count = 0;
+static int g_ncplane_move_yx_count = 0;
+static int g_ncplane_move_top_count = 0;
+
+void stub_reset_counters(void) {
+    g_ncplane_resize_simple_count = 0;
+    g_ncplane_move_yx_count = 0;
+    g_ncplane_move_top_count = 0;
+    g_ncplane_create_fail_count = 0;
+    g_stdplane_fail = 0;
+}
+int stub_get_resize_count(void) { return g_ncplane_resize_simple_count; }
+int stub_get_move_count(void) { return g_ncplane_move_yx_count; }
+int stub_get_move_top_count(void) { return g_ncplane_move_top_count; }
+
+/* ncplane_create: check failure counter before returning sentinel */
 struct ncplane* ncplane_create(struct ncplane* p, const ncplane_options* o) {
     (void)p; (void)o;
+    if (g_ncplane_create_fail_count > 0) {
+        g_ncplane_create_fail_count--;
+        return NULL;
+    }
     return (struct ncplane*)g_dummy_data;
 }
+int ncplane_resize_simple(struct ncplane* n, unsigned y, unsigned x) {
+    (void)n;(void)y;(void)x;
+    g_ncplane_resize_simple_count++;
+    return 0;
+}
+/* ncplane_resize is called by the inline ncplane_resize_simple from notcurses.h.
+ * We provide it here so the linker resolves it from our stubs. */
+int ncplane_resize(struct ncplane* n, int keepy, int keepx, unsigned keepleny, unsigned keeplenx, int yoff, int xoff, unsigned ylen, unsigned xlen) {
+    (void)n;(void)keepy;(void)keepx;(void)keepleny;(void)keeplenx;(void)yoff;(void)xoff;(void)ylen;(void)xlen;
+    g_ncplane_resize_simple_count++;
+    return 0;
+}
+int ncplane_move_yx(struct ncplane* n, int y, int x) {
+    (void)n;(void)y;(void)x;
+    g_ncplane_move_yx_count++;
+    return 0;
+}
+void ncplane_move_top(struct ncplane* n) {
+    (void)n;
+    g_ncplane_move_top_count++;
+}
+
+/* --- Standard stub functions --- */
+
 int ncplane_destroy(struct ncplane* n) { (void)n; return 0; }
 void ncplane_dim_yx(const struct ncplane* n, unsigned* restrict rows, unsigned* restrict cols) {
     (void)n; if(rows) *rows=24; if(cols) *cols=80;
@@ -43,9 +110,7 @@ void ncplane_abs_yx(const struct ncplane* n, int* restrict y, int* restrict x) {
 struct ncplane* ncplane_parent(struct ncplane* n) {
     (void)n; return (struct ncplane*)g_dummy_data;
 }
-int ncplane_move_yx(struct ncplane* n, int y, int x) { (void)n;(void)y;(void)x; return 0; }
 int ncplane_move_below(struct ncplane* n, struct ncplane* p) { (void)n;(void)p; return 0; }
-void ncplane_move_top(struct ncplane* n) { (void)n; }
 int ncplane_set_bg_rgb(struct ncplane* n, unsigned rgb) { (void)n;(void)rgb; return 0; }
 int ncplane_set_fg_rgb(struct ncplane* n, unsigned rgb) { (void)n;(void)rgb; return 0; }
 int ncplane_set_bg_alpha(struct ncplane* n, int a) { (void)n;(void)a; return 0; }
@@ -57,6 +122,15 @@ int ncplane_set_base(struct ncplane* n, const char* e, unsigned s, uint64_t c) {
 int ncplane_putstr_yx(struct ncplane* n, int y, int x, const char* s) {
     (void)n;(void)y;(void)x;(void)s; return s?(int)strlen(s):0;
 }
+int ncplane_putegc_yx(struct ncplane* n, int y, int x, const char* gcl, int* sbytes) {
+    (void)n;(void)y;(void)x;(void)gcl;(void)sbytes;
+    /* Return -1 so the inline ncplane_putstr_yx loop hits the error path
+     * (if cols < 0 → return -ret) and exits immediately. */
+    return -1;
+}
+int ncplane_putc_yx(struct ncplane* n, int y, int x, const uint64_t* c) {
+    (void)n;(void)y;(void)x;(void)c; return 0;
+}
 int ncplane_printf_yx(struct ncplane* n, int y, int x, const char* fmt, ...) {
     (void)n;(void)y;(void)x;(void)fmt; return 0;
 }
@@ -66,9 +140,6 @@ int ncplane_putchar_yx(struct ncplane* n, int y, int x, char c) {
 int ncplane_perimeter_rounded(struct ncplane* n, unsigned s, uint64_t c, unsigned e) {
     (void)n;(void)s;(void)c;(void)e; return 0;
 }
-int ncplane_resize_simple(struct ncplane* n, unsigned y, unsigned x) {
-    (void)n;(void)y;(void)x; return 0;
-}
 struct ncplane* ncplane_reparent(struct ncplane* n, struct ncplane* p) {
     (void)n;(void)p; return n;
 }
@@ -77,7 +148,56 @@ int ncchannels_set_bg_rgb(uint64_t* c, unsigned rgb) { (void)c;(void)rgb; return
 int ncchannels_set_bg_alpha(uint64_t* c, unsigned a) { (void)c;(void)a; return 0; }
 int ncchannels_set_fg_alpha(uint64_t* c, unsigned a) { (void)c;(void)a; return 0; }
 struct ncplane* notcurses_stdplane(struct notcurses* nc) {
+    if (g_stdplane_fail) return NULL;
     (void)nc; return (struct ncplane*)g_dummy_data;
 }
 int notcurses_render(struct notcurses* nc) { (void)nc; return 0; }
 int notcurses_mice_enable(struct notcurses* nc, unsigned m) { (void)nc;(void)m; return 0; }
+
+/* --- Additional stubs required by manager/render.c --- */
+
+/* nccell API */
+int nccell_load(struct ncplane* n, int y, int x, uint64_t* c) { (void)n;(void)y;(void)x;(void)c; return 0; }
+void nccell_release(struct ncplane* n, void* c) { (void)n;(void)c; }
+
+/* ncpile API */
+int ncpile_render(struct notcurses* nc) { (void)nc; return 0; }
+int ncpile_rasterize(struct notcurses* nc) { (void)nc; return 0; }
+
+/* notcurses capabilities — return a static struct with utf8=true so inline
+ * notcurses_canutf8() can dereference ->utf8 without segfaulting. */
+static struct {
+    unsigned colors;
+    int utf8;
+    int rgb;
+    int can_change_colors;
+    int halfblocks;
+    int quadrants;
+    int sextants;
+    int octants;
+    int braille;
+} g_stub_caps = {
+    .colors = 256,
+    .utf8 = 1,
+    .rgb = 1,
+    .can_change_colors = 0,
+    .halfblocks = 1,
+    .quadrants = 1,
+    .sextants = 1,
+    .octants = 1,
+    .braille = 1,
+};
+
+const void* notcurses_capabilities(const struct notcurses* nc) { (void)nc; return &g_stub_caps; }
+int notcurses_canutf8(const struct notcurses* nc) { (void)nc; return 1; }
+
+/* ncplane cursor and printf */
+int ncplane_vprintf_yx(struct ncplane* n, int y, int x, const char* fmt, va_list ap) { (void)n;(void)y;(void)x;(void)fmt;(void)ap; return 0; }
+int ncplane_cursor_yx(const struct ncplane* n, int* y, int* x) { (void)n; if(y) *y=0; if(x) *x=0; return 0; }
+int ncplane_cursor_move_yx(struct ncplane* n, int y, int x) { (void)n;(void)y;(void)x; return 0; }
+struct notcurses* ncplane_notcurses(const struct ncplane* n) { (void)n; return (struct notcurses*)g_dummy_data; }
+
+/* ncplane_box / ncplane_box_sized */
+int ncplane_box(struct ncplane* n, const void* ul, const void* ur, const void* ll, const void* lr, const void* hl, const void* vl, int ystop, int xstop, unsigned ctlword) {
+    (void)n;(void)ul;(void)ur;(void)ll;(void)lr;(void)hl;(void)vl;(void)ystop;(void)xstop;(void)ctlword; return 0;
+}
