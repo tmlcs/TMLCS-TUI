@@ -69,7 +69,7 @@ void tui_tab_add_window(TuiTab* tab, TuiWindow* win) {
     }
     tab->windows[tab->window_count++] = win;
     tab->active_window_index = tab->window_count - 1; // Foco a la nueva
-    ncplane_reparent(win->plane, tab->tab_plane); // Ascendiente del Tarea al Tab
+    if (win->plane) ncplane_reparent(win->plane, tab->tab_plane); // Ascendiente del Tarea al Tab
 }
 
 void tui_tab_remove_window(TuiTab* tab, TuiWindow* win) {

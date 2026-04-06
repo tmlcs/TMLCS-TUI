@@ -105,8 +105,13 @@ bool tui_textarea_handle_key(TuiTextArea* ta, uint32_t key, const struct ncinput
         } else if (ta->cursor_line > 0) {
             /* Join with previous line */
             int prev_len = (int)strlen(ta->lines[ta->cursor_line - 1]);
-            strncat(ta->lines[ta->cursor_line - 1], ta->lines[ta->cursor_line],
-                    TEXTAREA_MAX_LINE_LEN - prev_len - 1);
+            int remaining = TEXTAREA_MAX_LINE_LEN - prev_len - 1;
+            if (remaining > 0) {
+                int src_len = (int)strlen(ta->lines[ta->cursor_line]);
+                int copy = src_len < remaining ? src_len : remaining;
+                memcpy(ta->lines[ta->cursor_line - 1] + prev_len, ta->lines[ta->cursor_line], (size_t)copy);
+                ta->lines[ta->cursor_line - 1][prev_len + copy] = '\0';
+            }
             for (int i = ta->cursor_line; i < ta->line_count - 1; i++) {
                 memmove(ta->lines[i], ta->lines[i + 1], TEXTAREA_MAX_LINE_LEN);
             }
