@@ -6,6 +6,14 @@
 #include <string.h>
 #include <time.h>
 
+/* Last mouse position (set by input.c for hover highlight) */
+static int s_hover_y = -1, s_hover_x = -1;
+
+void tui_manager_update_hover(int y, int x) {
+    s_hover_y = y;
+    s_hover_x = x;
+}
+
 void tui_manager_render(TuiManager* manager) {
     // Fondo base del UI global real
     uint64_t bg_channels = 0;
@@ -84,6 +92,21 @@ void tui_manager_render(TuiManager* manager) {
                 // Siempre llamar render_cb para mantener el contenido actualizado
                 if (win->render_cb) {
                     win->render_cb(win);
+                }
+
+                // Focus ring: double-line border on focused window
+                if (win->focused) {
+                    unsigned w_dimy, w_dimx;
+                    ncplane_dim_yx(win->plane, &w_dimy, &w_dimx);
+                    ncplane_set_fg_rgb(win->plane, THEME_FG_TAB_ACTIVE);
+                    for (unsigned ci = 1; ci < w_dimx - 1; ci++) {
+                        ncplane_putchar_yx(win->plane, 0, (int)ci, '=');
+                        ncplane_putchar_yx(win->plane, (int)w_dimy - 1, (int)ci, '=');
+                    }
+                    for (unsigned ri = 1; ri < w_dimy - 1; ri++) {
+                        ncplane_putchar_yx(win->plane, (int)ri, 0, '|');
+                        ncplane_putchar_yx(win->plane, (int)ri, (int)w_dimx - 1, '|');
+                    }
                 }
             }
         }

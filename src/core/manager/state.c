@@ -2,9 +2,19 @@
 #include "core/workspace.h"
 #include "core/logger.h"
 #include "core/theme.h"
+#include "core/theme_loader.h"
+#include <stdatomic.h>
 #include <stdlib.h>
 
-int s_next_id = 1;
+static atomic_int s_next_id = 1;
+
+int tui_next_id(void) {
+    return (int)atomic_fetch_add_explicit(&s_next_id, 1, memory_order_relaxed) + 1;
+}
+
+void tui_reset_id(int value) {
+    atomic_store(&s_next_id, value);
+}
 
 TuiManager* tui_manager_create(struct notcurses* nc) {
     TuiManager* mgr = (TuiManager*)calloc(1, sizeof(TuiManager));
@@ -41,6 +51,10 @@ void tui_manager_destroy(TuiManager* manager) {
 }
 
 void tui_manager_add_workspace(TuiManager* manager, TuiWorkspace* ws) {
+    if (!manager || !ws) {
+        tui_log(LOG_ERROR, "tui_manager_add_workspace: manager or ws is NULL");
+        return;
+    }
     if (manager->workspace_count >= manager->workspace_capacity) {
         manager->workspace_capacity *= 2;
         TuiWorkspace** new_workspaces = (TuiWorkspace**)realloc(manager->workspaces, manager->workspace_capacity * sizeof(TuiWorkspace*));
@@ -83,4 +97,9 @@ void tui_manager_remove_active_workspace(TuiManager* mgr) {
     if (mgr->workspace_count > 0) {
         tui_manager_set_active_workspace(mgr, mgr->workspace_count - 1);
     }
+}
+
+bool tui_manager_set_theme(TuiManager* mgr, const char* name) {
+    (void)mgr; /* theme is global */
+    return tui_theme_apply(name);
 }
