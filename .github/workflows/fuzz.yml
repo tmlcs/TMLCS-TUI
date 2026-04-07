@@ -1,0 +1,135 @@
+name: Fuzz Testing
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Daily at 3:00 AM UTC
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/fuzz/**'
+      - 'Makefile'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FUZZ_TIMEOUT: 1800  # 30 minutes per target
+  FUZZ_CORPUS_DIR: tests/fuzz/corpus
+
+jobs:
+  fuzz-text-input:
+    name: Fuzz Text Input
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    env:
+      ASAN_OPTIONS: detect_leaks=0:halt_on_error=1:abort_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnotcurses-dev cmake pkg-config
+
+      - name: Build fuzz target
+        run: make clean && make fuzz-build
+
+      - name: Run fuzzer - text input
+        timeout-minutes: 30
+        run: |
+          mkdir -p fuzz-corpus-text-input
+          cp tests/fuzz/corpus/*.txt fuzz-corpus-text-input/ 2>/dev/null || true
+          ./build/fuzz_text_input_runner -max_total_time=$FUZZ_TIMEOUT -timeout=10 fuzz-corpus-text-input || {
+            echo "Fuzzer found a crash!"
+            exit 1
+          }
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-text-input-crashes
+          path: fuzz-corpus-text-input/crash-*
+          retention-days: 30
+
+  fuzz-textarea:
+    name: Fuzz Text Area
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    env:
+      ASAN_OPTIONS: detect_leaks=0:halt_on_error=1:abort_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnotcurses-dev cmake pkg-config
+
+      - name: Build fuzz target
+        run: make clean && make fuzz-build
+
+      - name: Run fuzzer - text area
+        timeout-minutes: 30
+        run: |
+          mkdir -p fuzz-corpus-textarea
+          cp tests/fuzz/corpus/*.txt fuzz-corpus-textarea/ 2>/dev/null || true
+          ./build/fuzz_textarea_runner -max_total_time=$FUZZ_TIMEOUT -timeout=10 fuzz-corpus-textarea || {
+            echo "Fuzzer found a crash!"
+            exit 1
+          }
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-textarea-crashes
+          path: fuzz-corpus-textarea/crash-*
+          retention-days: 30
+
+  fuzz-list:
+    name: Fuzz List
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    env:
+      ASAN_OPTIONS: detect_leaks=0:halt_on_error=1:abort_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnotcurses-dev cmake pkg-config
+
+      - name: Build fuzz target
+        run: make clean && make fuzz-build
+
+      - name: Run fuzzer - list
+        timeout-minutes: 30
+        run: |
+          mkdir -p fuzz-corpus-list
+          cp tests/fuzz/corpus/*.txt fuzz-corpus-list/ 2>/dev/null || true
+          ./build/fuzz_list_runner -max_total_time=$FUZZ_TIMEOUT -timeout=10 fuzz-corpus-list || {
+            echo "Fuzzer found a crash!"
+            exit 1
+          }
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-list-crashes
+          path: fuzz-corpus-list/crash-*
+          retention-days: 30

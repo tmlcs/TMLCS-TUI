@@ -254,6 +254,46 @@ $(BUILD_DIR)/test_file_picker_runner: tests/test_file_picker.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_file_picker.c src/widget/file_picker.c src/core/widget.c src/core/logger.c tests/nc_stubs.c -Iinclude -g -lpthread
 
+# Property tests: same deps as text_input tests (widget + logger + stubs + utf8)
+$(BUILD_DIR)/property_text_input_runner: tests/property/test_text_input_properties.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/property/test_text_input_properties.c src/widget/text_input.c src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c tests/nc_stubs.c -Iinclude -g -lpthread
+
+# UTF-8 property tests: pure C (no stubs needed)
+$(BUILD_DIR)/property_utf8_runner: tests/property/test_utf8_properties.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/property/test_utf8_properties.c src/core/utf8.c -Iinclude -g -lpthread
+
+# Keymap tests: core sources + stubs (needs manager struct for keymap)
+KEYMAP_CORE_SRCS = src/core/logger.c src/core/keymap.c src/core/clipboard.c
+
+$(BUILD_DIR)/test_keymap_runner: tests/test_keymap.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_keymap.c $(KEYMAP_CORE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
+
+# Loop tests: core sources + stubs (needs manager struct for loop)
+LOOP_CORE_SRCS = src/core/logger.c src/core/loop.c src/core/keymap.c src/core/manager/state.c src/core/manager/utils.c src/core/manager/input.c src/core/manager/render.c src/core/clipboard.c src/core/workspace.c src/core/tab.c src/core/window.c src/core/layout.c src/core/help.c src/core/theme_loader.c
+
+$(BUILD_DIR)/test_loop_runner: tests/test_loop.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ tests/test_loop.c $(LOOP_CORE_SRCS) $(WIDGET_MOUSE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
+
+# Fuzz test runners (compiled with sanitizer flags)
+FUZZ_CFLAGS = -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
+FUZZ_LDFLAGS = -fsanitize=address,undefined
+
+$(BUILD_DIR)/fuzz_text_input_runner: tests/fuzz/fuzz_text_input.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(FUZZ_CFLAGS) -o $@ tests/fuzz/fuzz_text_input.c src/widget/text_input.c src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c tests/nc_stubs.c -Iinclude $(FUZZ_LDFLAGS) -lpthread
+
+$(BUILD_DIR)/fuzz_textarea_runner: tests/fuzz/fuzz_textarea.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(FUZZ_CFLAGS) -o $@ tests/fuzz/fuzz_textarea.c src/widget/textarea.c src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c tests/nc_stubs.c -Iinclude $(FUZZ_LDFLAGS) -lpthread
+
+$(BUILD_DIR)/fuzz_list_runner: tests/fuzz/fuzz_list.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(FUZZ_CFLAGS) -o $@ tests/fuzz/fuzz_list.c src/widget/list.c src/core/widget.c src/core/logger.c src/core/clipboard.c src/core/utf8.c tests/nc_stubs.c -Iinclude $(FUZZ_LDFLAGS) -lpthread
+
 # Logger tests don't need stubs (pure C, no notcurses)
 $(BUILD_DIR)/test_logger_runner: tests/test_logger.c $(filter-out $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o,$(OBJS))
 	@mkdir -p $(dir $@)
@@ -320,6 +360,26 @@ asan: clean all test-all
 ubsan: CFLAGS += -fsanitize=undefined -fno-omit-frame-pointer -g -O1
 ubsan: LDFLAGS += -fsanitize=undefined
 ubsan: clean all test-all
+
+# ThreadSanitizer
+.PHONY: tsan
+tsan: CFLAGS += -fsanitize=thread -g
+tsan: LDFLAGS += -fsanitize=thread
+tsan: clean test-all
+
+# Fuzz build: compile fuzz targets with ASAN+UBSAN
+.PHONY: fuzz-build
+fuzz-build: CFLAGS += -fsanitize=address,undefined -g
+fuzz-build: $(BUILD_DIR)/fuzz_text_input_runner $(BUILD_DIR)/fuzz_textarea_runner $(BUILD_DIR)/fuzz_list_runner
+
+# ============================================
+# Format check
+# ============================================
+FMT_CHECK_FILES := $(shell find src include examples tests -name '*.c' -o -name '*.h' 2>/dev/null)
+
+.PHONY: fmt-check
+fmt-check:
+	find src include examples tests -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror
 
 # ============================================
 # Code coverage

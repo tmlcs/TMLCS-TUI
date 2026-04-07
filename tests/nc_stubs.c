@@ -41,6 +41,10 @@ typedef uint32_t NcKeyType;
 #define NCKEY_TAB 0x09
 #define NCKEY_F1 0x1003F
 #define NCKEY_RESIZE 0x10040
+#define NCKEY_BACKSPACE 0x08
+#define NCKEY_DELETE 0x7F
+#define NCKEY_HOME 0x10016
+#define NCKEY_END 0x10017
 #define MAX_MOUSE_BUTTON NCKEY_BUTTON11
 
 typedef enum {
@@ -286,4 +290,9 @@ struct notcurses* ncplane_notcurses(const struct ncplane* n) { (void)n; return (
 /* ncplane_box / ncplane_box_sized */
 int ncplane_box(struct ncplane* n, const void* ul, const void* ur, const void* ll, const void* lr, const void* hl, const void* vl, int ystop, int xstop, unsigned ctlword) {
     (void)n;(void)ul;(void)ur;(void)ll;(void)lr;(void)hl;(void)vl;(void)ystop;(void)xstop;(void)ctlword; return 0;
+}
+
+/* Return a dummy plane pointer for fuzz test usage */
+struct ncplane* stub_get_dummy_plane(void) {
+    return (struct ncplane*)g_dummy_data;
 }
