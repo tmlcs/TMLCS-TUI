@@ -6,16 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Added
-- Widget mouse handling for Button, Checkbox, List, Context Menu
-- `tui_text_input_handle_mouse()` — click positions cursor in text input
-- Widget registry system in `TuiWindow` — `tui_window_add_widget()`, `tui_window_get_widget_at()`
-- Widget mouse routing in manager `process_window_click`
-- Configurable plane positions in test stubs (`stub_set_plane_position`)
-- `docs/API.md` — comprehensive API reference
+---
 
-### Fixed
-- `tui_textarea_get()` static buffer replaced with caller-provided buffer
+## [0.6.0] — 2026-04-07
+
+### Critical Fixes
+- **F1 keymap binding** — Fixed undefined `NCKEY_F01` constant; now uses raw `0x1003F` value
+- **Library build** — Excluded `src/main.c` from CMake library targets to prevent duplicate symbol linker errors for consumers
+
+### Memory Safety
+- **strdup() OOM checks** — Added NULL checks across 7+ widgets (list, table, dialog, label, button, tree, checkbox)
+- **API return types** — `tui_list_add_item()`, `tui_label_set_text()`, `tui_button_set_label()` now return `bool` to signal OOM failures
+- **Table row rollback** — On OOM during row insertion, previously allocated cells are freed before returning
+- **Textarea truncation** — Enter key no longer silently truncates lines >2KB; explicit length clamping with null termination
+- **Error message format** — Added `": "` separator between error category prefix and detail (was `"Null argumentvalue"`, now `"Null argument: value"`)
+- **Paste capacity** — Fixed off-by-one in `tui_text_input_paste()` check (`>=` → `>`)
+
+### Behavioral
+- **on_exit_request callback** — `TuiLoopConfig.on_exit_request` is now invoked before quit; returning `false` cancels quitting
+- **Logger level preservation** — `tui_logger_init()` no longer resets log level to `LOG_DEBUG` on reinitialization
+- **Mouse event propagation** — `process_window_click` returns `false` for plain content clicks, allowing hover tracking to update
+- **Clipboard thread safety** — Added `pthread_mutex_t` to all clipboard operations
+
+### Performance
+- **Button double render** — Removed wasted second render in mouse handler (pressed state was never visible)
+- **Time caching** — `time()`/`localtime()`/`strftime()` called once/sec instead of 60×/sec in render loop
+- **Theme loader** — Eliminated duplicate `find_override()` linear search in `tui_theme_set_color()`
+- **Bulk separator drawing** — Replaced char-by-char `ncplane_putstr_yx` loops with single bulk writes (table, dialog, file_picker, tab_container)
+
+### API Completeness
+- **Umbrella header** — Added 9 missing widget headers (slider, radio_group, spinner, tab_container, dropdown, dialog, table, tree, file_picker) and 8 core headers (widget, layout, loop, keymap, error, utf8, debug, anim)
+- **Dead code removal** — Removed unused `TuiWidgetType` enum, `TUI_WIDGET_*` macros, and `MAX_WINDOW_WIDGETS` constant from `types.h`
+
+### Infrastructure
+- **_FORTIFY_SOURCE** — Added `-O2` to CFLAGS so `_FORTIFY_SOURCE=2` actually activates
+- **Clipboard docs** — Documented all error conditions for `tui_clipboard_paste()` return value
+- **CI** — Updated workflow, removed stale `ci-expanded.yml`
+
+### Docs
+- Added comprehensive `docs/API.md` reference
+- Added `CONTRIBUTING.md` guide
+- Removed 7 stale audit/plan documents
 
 ---
 
@@ -112,7 +143,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Mouse and keyboard input handling
 - Thread-safe ring buffer logger
 
-[Unreleased]: https://github.com/tmlcs/tmlcs-tui/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/tmlcs/tmlcs-tui/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/tmlcs/tmlcs-tui/releases/tag/v0.6.0
 [0.5.0]: https://github.com/tmlcs/tmlcs-tui/releases/tag/v0.5.0
 [0.4.0]: https://github.com/tmlcs/tmlcs-tui/releases/tag/v0.4.0
 [0.3.0]: https://github.com/tmlcs/tmlcs-tui/releases/tag/v0.3.0

@@ -4,7 +4,7 @@
  *
  * Umbrella header: include this single header to get the entire public API.
  *
- * @version 0.5.0
+ * @version 0.6.0
  * @copyright MIT License
  */
 #ifndef TMLCS_TUI_H

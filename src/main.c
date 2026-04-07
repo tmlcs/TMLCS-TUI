@@ -14,7 +14,7 @@
 int demo_main(struct notcurses* nc);
 
 static void print_usage(const char* prog) {
-    printf("TMLCS-TUI v0.5.0 - Terminal User Interface Framework\n");
+    printf("TMLCS-TUI v0.6.0 - Terminal User Interface Framework\n");
     printf("Usage: %s [OPTIONS]\n", prog);
     printf("\nOptions:\n");
     printf("  --help, -h        Show this help message\n");
@@ -32,7 +32,7 @@ static void print_usage(const char* prog) {
 }
 
 static void print_version(void) {
-    printf("tmlcs-tui version 0.5.0\n");
+    printf("tmlcs-tui version 0.6.0\n");
     printf("Copyright (c) 2026 TMLCS-TUI contributors. MIT License.\n");
 }
 

@@ -1,6 +1,6 @@
 # TMLCS-TUI — API Reference
 
-> Referencia rápida de las 120+ funciones públicas del framework v0.5.0.
+> Referencia rápida de las 120+ funciones públicas del framework v0.6.0.
 
 ## Architecture Overview
 
