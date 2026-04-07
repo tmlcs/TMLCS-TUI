@@ -19,13 +19,28 @@ INC_DIR = include
 BUILD_DIR = build
 
 # Encuentra todos los .c recursivamente usando bash find
+# Demo sources — all workspace files + common + demo entry point
+DEMO_SRCS = examples/demo.c examples/common.c \
+            examples/demo_system.c examples/demo_console.c \
+            examples/demo_desktop.c examples/demo_finance.c \
+            examples/demo_browse.c examples/demo_development.c \
+            examples/demo_agents.c examples/demo_log.c \
+            examples/demo_files.c
+
+DEMO_OBJS = $(BUILD_DIR)/examples/demo.o $(BUILD_DIR)/examples/common.o \
+            $(BUILD_DIR)/examples/demo_system.o $(BUILD_DIR)/examples/demo_console.o \
+            $(BUILD_DIR)/examples/demo_desktop.o $(BUILD_DIR)/examples/demo_finance.o \
+            $(BUILD_DIR)/examples/demo_browse.o $(BUILD_DIR)/examples/demo_development.o \
+            $(BUILD_DIR)/examples/demo_agents.o $(BUILD_DIR)/examples/demo_log.o \
+            $(BUILD_DIR)/examples/demo_files.o
+
 SRCS := $(shell find $(SRC_DIR) -name '*.c')
-EXAMPLE_SRCS := $(shell find $(EXAMPLES_DIR) -name '*.c')
-ALL_SRCS := $(SRCS) $(EXAMPLE_SRCS)
+OTHER_EXAMPLE_SRCS := $(shell find $(EXAMPLES_DIR) -name '*.c' ! -name 'demo.c' ! -name 'common.c' ! -name 'workspace_*.c')
+ALL_SRCS := $(SRCS) $(OTHER_EXAMPLE_SRCS) $(DEMO_SRCS)
 
 OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
-EXAMPLE_OBJS := $(patsubst $(EXAMPLES_DIR)/%.c, $(BUILD_DIR)/examples/%.o, $(EXAMPLE_SRCS))
-ALL_OBJS := $(OBJS) $(EXAMPLE_OBJS)
+OTHER_EXAMPLE_OBJS := $(patsubst $(EXAMPLES_DIR)/%.c, $(BUILD_DIR)/examples/%.o, $(OTHER_EXAMPLE_SRCS))
+ALL_OBJS := $(OBJS) $(OTHER_EXAMPLE_OBJS) $(DEMO_OBJS)
 
 TARGET = mi_tui
 
@@ -60,7 +75,7 @@ $(LIB_SHARED): $(LIB_SHARED_VERSIONED)
 $(LIB_SHARED_VERSIONED): $(OBJS)
 	$(CC) -shared -Wl,-soname,$(LIB_SHARED_SONAME) -o $@ $^ $(LDFLAGS)
 
-$(TARGET): $(OBJS) $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o
+$(TARGET): $(OBJS) $(BUILD_DIR)/main.o $(DEMO_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
