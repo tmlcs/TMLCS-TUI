@@ -33,8 +33,9 @@ void tui_label_destroy(TuiLabel* lbl);
  * @brief Change the label text.
  * @param lbl Label.
  * @param text New text. Copied internally.
+ * @return true on success, false on OOM or invalid arguments.
  */
-void tui_label_set_text(TuiLabel* lbl, const char* text);
+bool tui_label_set_text(TuiLabel* lbl, const char* text);
 
 /**
  * @brief Render the label.

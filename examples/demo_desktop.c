@@ -48,7 +48,7 @@ static void on_btn_settings(void* ud) { (void)ud; tui_log(LOG_INFO, "Action: Set
 static void on_btn_help(void* ud) { (void)ud; tui_log(LOG_INFO, "Action: Help"); }
 static void on_dropdown_select(int idx, void* ud) {
     (void)ud;
-    tui_log(LOG_INFO, "Language selected: %s (#%d)", idx);
+    tui_log(LOG_INFO, "Language selected: #%d", idx);
 }
 
 /* ============================================================

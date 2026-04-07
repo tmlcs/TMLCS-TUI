@@ -137,7 +137,7 @@ bool tui_text_input_paste(TuiTextInput* ti) {
     }
 
     int clip_cp = utf8_codepoint_count(clip, (int)strlen(clip));
-    if (ti->len_codepoints + clip_cp >= TEXT_INPUT_MAX_LEN - 1) return false;
+    if (ti->len_codepoints + clip_cp > TEXT_INPUT_MAX_LEN - 1) return false;
 
     int result = utf8_insert(ti->buffer, ti->len_bytes,
                              (int)sizeof(ti->buffer), ti->cursor_cp, clip);
@@ -448,11 +448,7 @@ void tui_text_input_render(TuiTextInput* ti) {
         int buf_byte = utf8_cp_to_byte_offset(ti->buffer, cp_i);
         const char* cp_ptr = ti->buffer + buf_byte;
         uint32_t cp = utf8_decode(&cp_ptr);
-        int cp_width = (cp >= 0x1100 && cp <= 0x115F) ||
-                       (cp >= 0x2E80 && cp <= 0x9FFF) ||
-                       (cp >= 0xAC00 && cp <= 0xD7AF) ||
-                       (cp >= 0xF900 && cp <= 0xFAFF) ||
-                       (cp >= 0x1F300 && cp <= 0x1F9FF) ? 2 : 1;
+        int cp_width = utf8_cp_width(cp);
 
         if (screen_col + cp_width > visible_width) break; /* Don't partially draw */
 
@@ -487,11 +483,7 @@ void tui_text_input_render(TuiTextInput* ti) {
             int buf_byte = utf8_cp_to_byte_offset(ti->buffer, cp_i);
             const char* cp_ptr = ti->buffer + buf_byte;
             uint32_t cp = utf8_decode(&cp_ptr);
-            int cp_width = (cp >= 0x1100 && cp <= 0x115F) ||
-                           (cp >= 0x2E80 && cp <= 0x9FFF) ||
-                           (cp >= 0xAC00 && cp <= 0xD7AF) ||
-                           (cp >= 0xF900 && cp <= 0xFAFF) ||
-                           (cp >= 0x1F300 && cp <= 0x1F9FF) ? 2 : 1;
+            int cp_width = utf8_cp_width(cp);
             screen_cursor += cp_width;
             cp_i++;
         }
@@ -528,11 +520,7 @@ bool tui_text_input_handle_mouse(TuiTextInput* ti, uint32_t key, const struct nc
         int buf_byte = utf8_cp_to_byte_offset(ti->buffer, cp_i);
         const char* cp_ptr = ti->buffer + buf_byte;
         uint32_t cp = utf8_decode(&cp_ptr);
-        int cp_width = (cp >= 0x1100 && cp <= 0x115F) ||
-                       (cp >= 0x2E80 && cp <= 0x9FFF) ||
-                       (cp >= 0xAC00 && cp <= 0xD7AF) ||
-                       (cp >= 0xF900 && cp <= 0xFAFF) ||
-                       (cp >= 0x1F300 && cp <= 0x1F9FF) ? 2 : 1;
+        int cp_width = utf8_cp_width(cp);
         if (screen_col + cp_width > click_screen_col) break;
         screen_col += cp_width;
         cp_i++;

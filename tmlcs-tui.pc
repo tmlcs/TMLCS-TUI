@@ -5,8 +5,8 @@ includedir=${prefix}/include/tmlcs-tui
 
 Name: tmlcs-tui
 Description: Terminal User Interface framework with Workspace-Tab-Window architecture
-Version: 0.4.0
+Version: 0.5.0
 Requires: notcurses >= 3.0
-Libs: -L${libdir} -lnotcurses -lnotcurses-core -pthread
-Libs.private:
+Libs: -L${libdir} -ltmlcs_tui
+Libs.private: -lnotcurses -lnotcurses-core -pthread
 Cflags: -I${includedir}

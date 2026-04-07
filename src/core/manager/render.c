@@ -7,6 +7,7 @@
 #include "core/types_private.h"
 #include <string.h>
 #include <time.h>
+#include <stdio.h>
 
 /* Last mouse position (set by input.c for hover highlight) */
 static int s_hover_y = -1, s_hover_x = -1;
@@ -95,11 +96,29 @@ void tui_manager_render(TuiManager* manager) {
         /* 1. Stylized Toolbar Bar (only if marked dirty) */
         if (manager->_toolbar_needs_redraw) {
             ncplane_set_bg_rgb(manager->_stdplane, THEME_BG_DARK);
-            for (unsigned i = 0; i < dimx; i++) ncplane_putstr_yx(manager->_stdplane, 0, i, " ");
+            /* Clear toolbar row in one call instead of char-by-char */
+            {
+                char blank[1024];
+                int n = dimx < sizeof(blank) - 1 ? (int)dimx : (int)sizeof(blank) - 1;
+                memset(blank, ' ', (size_t)n);
+                blank[n] = '\0';
+                ncplane_putstr_yx(manager->_stdplane, 0, 0, blank);
+            }
 
-            /* Subtle horizontal separator */
+            /* Subtle horizontal separator in one call instead of char-by-char */
             ncplane_set_fg_rgb(manager->_stdplane, THEME_FG_SEPARATOR);
-            for (unsigned i = 0; i < dimx; i++) ncplane_putstr_yx(manager->_stdplane, 1, i, "━");
+            {
+                char sep[1024];
+                const char* sep_ch = "\xe2\x94\x81";  /* U+2501, 3 bytes */
+                const int sep_ch_len = 3;
+                int total_bytes = (int)dimx * sep_ch_len;
+                if (total_bytes >= (int)sizeof(sep)) total_bytes = (int)sizeof(sep) - 1;
+                for (int j = 0; j + sep_ch_len <= total_bytes; j += sep_ch_len) {
+                    memcpy(sep + j, sep_ch, sep_ch_len);
+                }
+                sep[total_bytes] = '\0';
+                ncplane_putstr_yx(manager->_stdplane, 1, 0, sep);
+            }
 
             /* Workspace info */
             ncplane_set_fg_rgb(manager->_stdplane, THEME_FG_WS_LABEL);
@@ -207,15 +226,32 @@ void tui_manager_render(TuiManager* manager) {
     char time_str[10];
     time_t rawtime;
     struct tm * timeinfo;
-    time(&rawtime);
-    timeinfo = localtime(&rawtime);
-    strftime(time_str, sizeof(time_str), "%H:%M", timeinfo);
+
+    /* Cache time to avoid calling time()/localtime()/strftime() 60×/sec
+     * when the displayed value only changes once per minute. */
+    static time_t last_check = 0;
+    static char cached_str[10] = {0};
+    time_t now = time(NULL);
+    if (now != last_check) {
+        last_check = now;
+        rawtime = now;
+        timeinfo = localtime(&rawtime);
+        strftime(cached_str, sizeof(cached_str), "%H:%M", timeinfo);
+    }
+    memcpy(time_str, cached_str, sizeof(time_str));
 
     bool clock_changed = (strcmp(manager->_last_clock, time_str) != 0);
 
     if (manager->_taskbar_needs_redraw || clock_changed) {
         ncplane_set_bg_rgb(manager->_stdplane, THEME_BG_TASKBAR);
-        for (unsigned i = 0; i < dimx; i++) ncplane_putstr_yx(manager->_stdplane, dimy - 1, i, " ");
+        /* Clear taskbar row in one call instead of char-by-char */
+        {
+            char blank[1024];
+            int n = dimx < sizeof(blank) - 1 ? (int)dimx : (int)sizeof(blank) - 1;
+            memset(blank, ' ', (size_t)n);
+            blank[n] = '\0';
+            ncplane_putstr_yx(manager->_stdplane, (int)dimy - 1, 0, blank);
+        }
 
         ncplane_set_bg_rgb(manager->_stdplane, THEME_BG_TITLE_INA);
         ncplane_set_fg_rgb(manager->_stdplane, THEME_FG_TAB_ACTIVE);

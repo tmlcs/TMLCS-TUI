@@ -17,23 +17,36 @@
 static void ensure_widget_capacity(TuiWindow* win) {
     if (win->_widget_count < win->_widget_capacity) return;
 
-    win->_widget_capacity = win->_widget_capacity
+    int new_capacity = win->_widget_capacity
         ? win->_widget_capacity * 2
         : WIDGET_INITIAL_CAPACITY;
 
-    win->_widgets = (void**)realloc(win->_widgets,
-        (size_t)win->_widget_capacity * sizeof(void*));
-    win->_widget_type_ids = (int*)realloc(win->_widget_type_ids,
-        (size_t)win->_widget_capacity * sizeof(int));
-    win->_widget_planes = (struct ncplane**)realloc(win->_widget_planes,
-        (size_t)win->_widget_capacity * sizeof(struct ncplane*));
-    win->_widget_focusable = (bool*)realloc(win->_widget_focusable,
-        (size_t)win->_widget_capacity * sizeof(bool));
+    /* Use temp pointers to prevent data loss on OOM */
+    void** tmp_widgets = (void**)realloc(win->_widgets,
+        (size_t)new_capacity * sizeof(void*));
+    int* tmp_type_ids = (int*)realloc(win->_widget_type_ids,
+        (size_t)new_capacity * sizeof(int));
+    struct ncplane** tmp_planes = (struct ncplane**)realloc(win->_widget_planes,
+        (size_t)new_capacity * sizeof(struct ncplane*));
+    bool* tmp_focusable = (bool*)realloc(win->_widget_focusable,
+        (size_t)new_capacity * sizeof(bool));
 
-    if (!win->_widgets || !win->_widget_type_ids ||
-        !win->_widget_planes || !win->_widget_focusable) {
+    if (!tmp_widgets || !tmp_type_ids || !tmp_planes || !tmp_focusable) {
+        /* Free any successful reallocs to prevent partial state */
+        if (tmp_widgets) free(tmp_widgets);
+        if (tmp_type_ids) free(tmp_type_ids);
+        if (tmp_planes) free(tmp_planes);
+        if (tmp_focusable) free(tmp_focusable);
         tui_log(LOG_ERROR, "OOM in ensure_widget_capacity");
+        return;
     }
+
+    /* Commit all changes atomically */
+    win->_widgets = tmp_widgets;
+    win->_widget_type_ids = tmp_type_ids;
+    win->_widget_planes = tmp_planes;
+    win->_widget_focusable = tmp_focusable;
+    win->_widget_capacity = new_capacity;
 }
 
 TuiWindow* tui_window_create(TuiTab* tab, int width, int height) {

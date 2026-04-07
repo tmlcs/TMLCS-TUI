@@ -1,6 +1,7 @@
 #include "widget/tree.h"
 #include "core/theme.h"
 #include "core/widget.h"
+#include "core/logger.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,7 +14,10 @@ static void ensure_capacity(TuiTree* tree) {
     if (tree->count >= tree->capacity) {
         int new_cap = tree->capacity * 2;
         TuiTreeNode* new_nodes = (TuiTreeNode*)realloc(tree->nodes, (size_t)new_cap * sizeof(TuiTreeNode));
-        if (!new_nodes) return;
+        if (!new_nodes) {
+            tui_log(LOG_ERROR, "OOM in tree ensure_capacity");
+            return;
+        }
         tree->nodes = new_nodes;
         tree->capacity = new_cap;
     }
@@ -73,6 +77,10 @@ int tui_tree_add_node(TuiTree* tree, const char* label, bool is_leaf) {
 
     int idx = tree->count;
     tree->nodes[idx].label = strdup(label);
+    if (!tree->nodes[idx].label) {
+        tui_log(LOG_ERROR, "Out of memory in tui_tree_add_node");
+        return -1;
+    }
     tree->nodes[idx].depth = 0;
     tree->nodes[idx].parent = -1;
     tree->nodes[idx].expanded = !is_leaf;
@@ -109,6 +117,10 @@ int tui_tree_add_child(TuiTree* tree, int parent_idx, const char* label, bool is
 
     /* Insert new child */
     tree->nodes[insert_pos].label = strdup(label);
+    if (!tree->nodes[insert_pos].label) {
+        tui_log(LOG_ERROR, "Out of memory in tui_tree_add_child");
+        return -1;
+    }
     tree->nodes[insert_pos].depth = parent_depth + 1;
     tree->nodes[insert_pos].parent = parent_idx;
     tree->nodes[insert_pos].expanded = !is_leaf;

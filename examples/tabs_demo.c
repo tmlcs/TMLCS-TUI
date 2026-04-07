@@ -5,6 +5,7 @@
  */
 #include <notcurses/notcurses.h>
 #include <locale.h>
+#include <time.h>
 #include "tmlcs_tui.h"
 
 static void render_tab_info(TuiWindow* win) {
@@ -40,10 +41,10 @@ int main(void) {
     TuiTab* tab1b = tui_tab_create(ws1, "Terminal");
     tui_workspace_add_tab(ws1, tab1b);
     TuiWindow* w1 = tui_window_create(tab1a, 40, 8);
-    w1->user_data = "Editor Window";
-    w1->render_cb = render_tab_info;
+    w1->_user_data = "Editor Window";
+    w1->_render_cb = render_tab_info;
     tui_tab_add_window(tab1a, w1);
-    ncplane_move_yx(w1->plane, 2, 2);
+    ncplane_move_yx(w1->_plane, 2, 2);
 
     /* Workspace 2 with 1 tab */
     TuiWorkspace* ws2 = tui_workspace_create(mgr, "Browser");
@@ -51,10 +52,10 @@ int main(void) {
     TuiTab* tab2 = tui_tab_create(ws2, "Web");
     tui_workspace_add_tab(ws2, tab2);
     TuiWindow* w2 = tui_window_create(tab2, 40, 8);
-    w2->user_data = "Browser Window";
-    w2->render_cb = render_tab_info;
+    w2->_user_data = "Browser Window";
+    w2->_render_cb = render_tab_info;
     tui_tab_add_window(tab2, w2);
-    ncplane_move_yx(w2->plane, 2, 2);
+    ncplane_move_yx(w2->_plane, 2, 2);
 
     tui_manager_set_active_workspace(mgr, 0);
 

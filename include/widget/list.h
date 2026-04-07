@@ -44,8 +44,9 @@ void tui_list_destroy(TuiList* list);
  * @brief Add an item to the list.
  * @param list List.
  * @param item Text to add. Copied internally.
+ * @return true on success, false on OOM or invalid arguments.
  */
-void tui_list_add_item(TuiList* list, const char* item);
+bool tui_list_add_item(TuiList* list, const char* item);
 
 /**
  * @brief Remove an item by index.

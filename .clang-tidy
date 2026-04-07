@@ -1,4 +1,14 @@
 ---
-Checks: bugprone-*,performance-*,readability-*,portability-*,modernize-use-nullptr
-WarningsAsErrors: ''
-HeaderFilterRegex: 'include/.*'
+Checks: >
+  bugprone-*,
+  performance-*,
+  readability-*,
+  portability-*,
+  clang-analyzer-*,
+  cert-*,
+  security-*
+WarningsAsErrors: '*'
+HeaderFilterRegex: 'src/.*|include/.*'
+CheckOptions:
+  - key: cert-dcl16-c.NewSuffixList
+    value: 'L,UL,ULL'

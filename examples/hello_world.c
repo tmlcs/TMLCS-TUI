@@ -8,6 +8,7 @@
  */
 #include <notcurses/notcurses.h>
 #include <locale.h>
+#include <time.h>
 #include "tmlcs_tui.h"
 
 static void render_hello(TuiWindow* win) {

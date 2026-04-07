@@ -76,12 +76,14 @@ void tui_manager_add_workspace(TuiManager* manager, TuiWorkspace* ws) {
         return;
     }
     if (manager->_workspace_count >= manager->_workspace_capacity) {
-        manager->_workspace_capacity *= 2;
-        TuiWorkspace** new_workspaces = (TuiWorkspace**)realloc(manager->_workspaces, manager->_workspace_capacity * sizeof(TuiWorkspace*));
+        int new_capacity = manager->_workspace_capacity * 2;
+        TuiWorkspace** new_workspaces = (TuiWorkspace**)realloc(manager->_workspaces,
+            (size_t)new_capacity * sizeof(TuiWorkspace*));
         if (!new_workspaces) {
             tui_log(LOG_ERROR, "OOM in tui_manager_add_workspace (realloc)");
-            return; /* Do not add the workspace */
+            return; /* Capacity NOT updated — buffer unchanged */
         }
+        manager->_workspace_capacity = new_capacity;
         manager->_workspaces = new_workspaces;
     }
     manager->_workspaces[manager->_workspace_count++] = ws;

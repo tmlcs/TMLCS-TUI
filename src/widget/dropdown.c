@@ -1,6 +1,7 @@
 #include "widget/dropdown.h"
 #include "core/theme.h"
 #include "core/widget.h"
+#include "core/logger.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,7 +14,10 @@ static void ensure_capacity(TuiDropdown* dropdown) {
     if (dropdown->count >= dropdown->capacity) {
         int new_cap = dropdown->capacity * 2;
         char** new_items = (char**)realloc(dropdown->items, (size_t)new_cap * sizeof(char*));
-        if (!new_items) return;
+        if (!new_items) {
+            tui_log(LOG_ERROR, "OOM in dropdown ensure_capacity");
+            return;
+        }
         dropdown->items = new_items;
         dropdown->capacity = new_cap;
     }

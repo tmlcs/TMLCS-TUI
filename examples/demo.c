@@ -41,6 +41,10 @@ static bool demo_on_frame(TuiManager* mgr, void* userdata) {
     (void)mgr; (void)userdata;
     demo_update_mock_data();
 
+    /* Clear active input each frame — workspace render will re-set it if needed.
+     * This prevents key routing to widgets from non-active workspaces. */
+    g_demo.active_input = NULL;
+
     /* Render dialog overlay if visible */
     if (agents_get_dialog_visible() && agents_get_dialog() && agents_get_dialog_plane()) {
         tui_dialog_render(agents_get_dialog());

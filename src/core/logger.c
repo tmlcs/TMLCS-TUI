@@ -14,6 +14,9 @@ static LogLevel s_log_level = LOG_DEBUG; /* Default: log everything */
 void tui_logger_init(const char* filepath) {
     pthread_mutex_lock(&s_log_mutex);
 
+    /* Preserve current log level across reinitialization */
+    LogLevel saved_level = s_log_level;
+
     /* Close previous file if re-initialized without destroy (defensive) */
     if (s_log_file) {
         fclose(s_log_file);
@@ -27,7 +30,7 @@ void tui_logger_init(const char* filepath) {
     s_log_buffer.head = 0;
     s_log_buffer.count = 0;
     memset(s_log_buffer.lines, 0, sizeof(s_log_buffer.lines));
-    s_log_level = LOG_DEBUG; /* Reset to default on each init */
+    s_log_level = saved_level; /* Restore level instead of resetting to LOG_DEBUG */
 
     pthread_mutex_unlock(&s_log_mutex);
 

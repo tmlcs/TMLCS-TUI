@@ -1,7 +1,7 @@
 #ifndef CORE_HELP_H
 #define CORE_HELP_H
 
-#include "core/manager.h"
+#include <notcurses/notcurses.h>
 
 /**
  * @brief Show the help overlay on the given plane.

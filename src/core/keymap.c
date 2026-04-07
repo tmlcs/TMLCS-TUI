@@ -9,6 +9,7 @@
 #include "core/keymap.h"
 #include "core/manager.h"
 #include "core/types_private.h"
+#include "core/logger.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -39,7 +40,10 @@ struct TuiKeymap {
 void tui_keymap_init(TuiManager* mgr) {
     if (!mgr) return;
     mgr->_keymap = (struct TuiKeymap*)calloc(1, sizeof(struct TuiKeymap));
-    if (!mgr->_keymap) return;
+    if (!mgr->_keymap) {
+        tui_log(LOG_ERROR, "Failed to allocate keymap — keyboard shortcuts disabled");
+        return;
+    }
 
     /* Default bindings */
     tui_keymap_bind(mgr, ACTION_QUIT, 'q', false, false, false);
@@ -53,7 +57,7 @@ void tui_keymap_init(TuiManager* mgr) {
     tui_keymap_bind(mgr, ACTION_PREV_TAB, NCKEY_LEFT, false, false, false);
     tui_keymap_bind(mgr, ACTION_NEXT_WINDOW, NCKEY_TAB, false, false, false);
     tui_keymap_bind(mgr, ACTION_PREV_WINDOW, NCKEY_TAB, false, false, true);
-    tui_keymap_bind(mgr, ACTION_TOGGLE_HELP, NCKEY_F01, false, false, false);
+    tui_keymap_bind(mgr, ACTION_TOGGLE_HELP, 0x1003F, false, false, false);  /* F1 key */
     tui_keymap_bind(mgr, ACTION_TOGGLE_HELP, '?', false, false, false);
     tui_keymap_bind(mgr, ACTION_CANCEL, 0x1B, false, false, false);
 }

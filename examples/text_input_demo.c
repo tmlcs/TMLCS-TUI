@@ -12,7 +12,7 @@ static TuiTextInput* g_input = NULL;
 
 static void on_submit(const char* text, void* userdata) {
     (void)userdata;
-    tui_log(LOG_INFO, "Submitted: %s", text);
+    tui_log(LOG_INFO, "Submitted: %s", text ? text : "(null)");
 }
 
 static void render_console(TuiWindow* win) {

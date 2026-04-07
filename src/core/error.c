@@ -38,7 +38,7 @@ void _tui_set_error(TuiError err, const char* fmt, ...) {
         default: break;
     }
 
-    int n = snprintf(s_error_msg, sizeof(s_error_msg), "%s", prefix);
+    int n = snprintf(s_error_msg, sizeof(s_error_msg), "%s: ", prefix);
     if (fmt && n > 0 && n < (int)sizeof(s_error_msg)) {
         va_list args;
         va_start(args, fmt);

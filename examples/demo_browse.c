@@ -34,11 +34,6 @@ static void on_url_submit(const char* text, void* ud) {
     (void)ud;
     if (text && text[0]) {
         tui_log(LOG_INFO, "Navigating to: %s", text);
-        if (s_content_area) {
-            tui_textarea_clear(s_content_area);
-            // Content would be set via API
-            
-        }
         if (s_history_list) tui_list_add_item(s_history_list, text);
     }
 }

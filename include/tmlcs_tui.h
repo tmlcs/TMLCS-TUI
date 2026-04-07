@@ -23,6 +23,14 @@
 #include "core/theme_loader.h"
 #include "core/help.h"
 #include "core/clipboard.h"
+#include "core/widget.h"
+#include "core/layout.h"
+#include "core/loop.h"
+#include "core/keymap.h"
+#include "core/error.h"
+#include "core/utf8.h"
+#include "core/debug.h"
+#include "core/anim.h"
 
 /* Widgets */
 #include "widget/text_input.h"
@@ -33,5 +41,14 @@
 #include "widget/textarea.h"
 #include "widget/checkbox.h"
 #include "widget/context_menu.h"
+#include "widget/slider.h"
+#include "widget/radio_group.h"
+#include "widget/spinner.h"
+#include "widget/tab_container.h"
+#include "widget/dropdown.h"
+#include "widget/dialog.h"
+#include "widget/table.h"
+#include "widget/tree.h"
+#include "widget/file_picker.h"
 
 #endif /* TMLCS_TUI_H */

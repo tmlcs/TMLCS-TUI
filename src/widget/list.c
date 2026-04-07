@@ -1,6 +1,7 @@
 #include "widget/list.h"
 #include "core/theme.h"
 #include "core/widget.h"
+#include "core/logger.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,19 +55,28 @@ static void ensure_capacity(TuiList* list) {
     if (list->count >= list->capacity) {
         int new_cap = list->capacity * 2;
         char** new_items = (char**)realloc(list->items, (size_t)new_cap * sizeof(char*));
-        if (!new_items) return;
+        if (!new_items) {
+            tui_log(LOG_ERROR, "OOM in list ensure_capacity");
+            return;
+        }
         list->items = new_items;
         list->capacity = new_cap;
     }
 }
 
-void tui_list_add_item(TuiList* list, const char* item) {
-    if (!list || !item) return;
+bool tui_list_add_item(TuiList* list, const char* item) {
+    if (!list || !item) return false;
     ensure_capacity(list);
-    list->items[list->count] = strdup(item);
+    char* copy = strdup(item);
+    if (!copy) {
+        tui_log(LOG_ERROR, "Out of memory in tui_list_add_item");
+        return false;
+    }
+    list->items[list->count] = copy;
     if (list->selected == -1) list->selected = 0;
     list->count++;
     tui_list_render(list);
+    return true;
 }
 
 void tui_list_remove_item(TuiList* list, int index) {

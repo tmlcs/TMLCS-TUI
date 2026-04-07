@@ -29,6 +29,7 @@ typedef struct TuiLayoutChild TuiLayoutChild;
 struct TuiLayoutChild {
     void* widget;
     struct ncplane* plane;
+    int type_id;                  /**< Registered widget type_id for dispatch */
     TuiLayout* nested_layout;
     TuiSizeConstraint size;
     float size_value;
@@ -40,7 +41,7 @@ TuiLayout* tui_layout_create(TuiLayoutDirection direction);
 void tui_layout_destroy(TuiLayout* layout);
 void tui_layout_set_spacing(TuiLayout* layout, int spacing);
 void tui_layout_set_padding(TuiLayout* layout, int top, int right, int bottom, int left);
-void tui_layout_add_widget(TuiLayout* layout, void* widget, struct ncplane* plane,
+void tui_layout_add_widget(TuiLayout* layout, void* widget, int type_id, struct ncplane* plane,
                            TuiSizeConstraint size, float size_value, TuiAlignment alignment);
 void tui_layout_add_layout(TuiLayout* layout, TuiLayout* child,
                            TuiSizeConstraint size, float size_value, TuiAlignment alignment);

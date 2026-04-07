@@ -1,6 +1,7 @@
 #include "widget/label.h"
 #include "core/theme.h"
 #include "core/widget.h"
+#include "core/logger.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -25,6 +26,7 @@ TuiLabel* tui_label_create(struct ncplane* parent, int y, int x, const char* tex
     if (!lbl->plane) { free(lbl); return NULL; }
 
     lbl->text = strdup(text);
+    if (!lbl->text) { ncplane_destroy(lbl->plane); free(lbl); return NULL; }
     lbl->fg_color = THEME_FG_DEFAULT;
 
     tui_label_ensure_registered();
@@ -41,11 +43,17 @@ void tui_label_destroy(TuiLabel* lbl) {
     free(lbl);
 }
 
-void tui_label_set_text(TuiLabel* lbl, const char* text) {
-    if (!lbl || !text) return;
+bool tui_label_set_text(TuiLabel* lbl, const char* text) {
+    if (!lbl || !text) return false;
+    char* copy = strdup(text);
+    if (!copy) {
+        tui_log(LOG_ERROR, "Out of memory in tui_label_set_text");
+        return false;
+    }
     free(lbl->text);
-    lbl->text = strdup(text);
+    lbl->text = copy;
     tui_label_render(lbl);
+    return true;
 }
 
 void tui_label_render(TuiLabel* lbl) {

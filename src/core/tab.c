@@ -43,6 +43,12 @@ TuiTab* tui_tab_create(TuiWorkspace* ws, const char* name) {
         .flags = 0
     };
     tab->_tab_plane = ncplane_create(ws->_ws_plane, &opts);
+    if (!tab->_tab_plane) {
+        free(tab->_windows);
+        free(tab);
+        tui_log(LOG_ERROR, "Failed to create tab plane in tui_tab_create");
+        return NULL;
+    }
     return tab;
 }
 

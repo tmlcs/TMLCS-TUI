@@ -5,6 +5,7 @@
 #include "core/layout.h"
 #include "core/theme.h"
 #include "core/help.h"
+#include "core/loop.h"
 #include "core/types_private.h"
 #include "core/widget.h"
 #include "widget/text_input.h"
@@ -102,7 +103,7 @@ static bool process_window_click(TuiManager* mgr, TuiTab* tab, uint32_t key, con
         return true;
     }
 
-    return true;  /* Window focused, no special action */
+    return false;  /* Window focused, no special action — propagate to hover tracking */
 }
 
 /**
@@ -345,6 +346,12 @@ bool tui_manager_process_keyboard(TuiManager* mgr, uint32_t key, const struct nc
 
     /* Quit App */
     if (key == 'q' || key == 'Q') {
+        const struct TuiLoopConfig* cfg = mgr->_loop_config;
+        if (cfg && cfg->on_exit_request) {
+            if (!cfg->on_exit_request(mgr, cfg->userdata)) {
+                return true;  /* Callback returned false — cancel quit */
+            }
+        }
         mgr->_running = false;
         return true;
     }
@@ -391,13 +398,13 @@ bool tui_manager_process_keyboard(TuiManager* mgr, uint32_t key, const struct nc
                 ncplane_yx(win->_plane, &wp_y, &wp_x);
                 ncplane_dim_yx(win->_plane, &w_dimy, &w_dimx);
 
-                if (key == NCKEY_UP && w_dimy + 1 <= 50) {
+                if (key == NCKEY_UP && w_dimy + 1 <= WINDOW_MAX_HEIGHT) {
                     ncplane_resize_simple(win->_plane, w_dimy + 1, w_dimx);
                     if (win->_render_cb) win->_render_cb(win);
                 } else if (key == NCKEY_DOWN && w_dimy > WINDOW_MIN_HEIGHT) {
                     ncplane_resize_simple(win->_plane, w_dimy - 1, w_dimx);
                     if (win->_render_cb) win->_render_cb(win);
-                } else if (key == NCKEY_RIGHT && w_dimx + 1 <= 100) {
+                } else if (key == NCKEY_RIGHT && w_dimx + 1 <= WINDOW_MAX_WIDTH) {
                     ncplane_resize_simple(win->_plane, w_dimy, w_dimx + 1);
                     if (win->_render_cb) win->_render_cb(win);
                 } else if (key == NCKEY_LEFT && w_dimx > WINDOW_MIN_WIDTH) {

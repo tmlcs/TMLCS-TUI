@@ -1,6 +1,7 @@
 #include "widget/tab_container.h"
 #include "core/theme.h"
 #include "core/widget.h"
+#include "core/logger.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,7 +14,10 @@ static void ensure_capacity(TuiTabContainer* container) {
     if (container->tab_count >= container->tab_capacity) {
         int new_cap = container->tab_capacity * 2;
         char** new_labels = (char**)realloc(container->tab_labels, (size_t)new_cap * sizeof(char*));
-        if (!new_labels) return;
+        if (!new_labels) {
+            tui_log(LOG_ERROR, "OOM in tab_container ensure_capacity");
+            return;
+        }
         container->tab_labels = new_labels;
         container->tab_capacity = new_cap;
     }
@@ -180,10 +184,14 @@ void tui_tab_container_render(TuiTabContainer* container) {
         cur_x += label_len + 3;
     }
 
-    /* Draw separator line on row 1 */
+    /* Draw separator line on row 1 — bulk write instead of char-by-char */
     ncplane_set_fg_rgb(container->plane, container->fg_separator);
-    for (unsigned i = 0; i < cols; i++) {
-        ncplane_putstr_yx(container->plane, 1, (int)i, "-");
+    {
+        char sep[1024];
+        int n = (int)cols < 1023 ? (int)cols : 1023;
+        memset(sep, '-', (size_t)n);
+        sep[n] = '\0';
+        ncplane_putstr_yx(container->plane, 1, 0, sep);
     }
 
     /* Draw content area from row 2 onward */

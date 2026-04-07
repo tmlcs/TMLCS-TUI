@@ -1,10 +1,19 @@
 # Build artifacts
-/build/
-/mi_tui
+build/
+mi_tui
 *.o
 *.a
 *.so
 *.dylib
+
+# Test coverage
+coverage/
+*.gcda
+*.gcno
+*.info
+
+# Logs
+*.log
 
 # IDE / Editors
 .vscode/
@@ -16,18 +25,3 @@
 # OS generated
 .DS_Store
 Thumbs.db
-
-# Test coverage
-coverage/
-*.gcda
-*.gcno
-*.info
-
-# Logs
-*.log
-build/
-mi_tui
-*.o
-*.gcda
-*.gcno
-coverage/

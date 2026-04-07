@@ -50,18 +50,25 @@ void tui_layout_set_padding(TuiLayout* layout, int top, int right, int bottom, i
 
 static void ensure_layout_capacity(TuiLayout* layout) {
     if (layout->child_count < layout->child_capacity) return;
-    layout->child_capacity *= 2;
-    layout->children = (TuiLayoutChild*)realloc(layout->children,
-        (size_t)layout->child_capacity * sizeof(TuiLayoutChild));
+    int new_capacity = layout->child_capacity * 2;
+    TuiLayoutChild* tmp = (TuiLayoutChild*)realloc(layout->children,
+        (size_t)new_capacity * sizeof(TuiLayoutChild));
+    if (!tmp) {
+        tui_log(LOG_ERROR, "OOM in ensure_layout_capacity");
+        return;
+    }
+    layout->children = tmp;
+    layout->child_capacity = new_capacity;
 }
 
-void tui_layout_add_widget(TuiLayout* layout, void* widget, struct ncplane* plane,
+void tui_layout_add_widget(TuiLayout* layout, void* widget, int type_id, struct ncplane* plane,
                            TuiSizeConstraint size, float size_value, TuiAlignment alignment) {
     if (!layout || !widget || !plane) return;
     ensure_layout_capacity(layout);
     TuiLayoutChild* child = &layout->children[layout->child_count++];
     memset(child, 0, sizeof(TuiLayoutChild));
     child->widget = widget;
+    child->type_id = type_id;
     child->plane = plane;
     child->size = size;
     child->size_value = size_value;
@@ -131,7 +138,7 @@ void tui_layout_compute(TuiLayout* layout, int available_height, int available_w
                 break;
             case SIZE_AUTO:
                 if (child->widget) {
-                    tui_widget_preferred_size(0, child->widget, content_h, content_w, &child_h, &child_w);
+                    tui_widget_preferred_size(child->type_id, child->widget, content_h, content_w, &child_h, &child_w);
                 }
                 if (child_h < 0) child_h = 1;
                 if (child_w < 0) child_w = 10;
@@ -182,7 +189,7 @@ void tui_layout_compute(TuiLayout* layout, int available_height, int available_w
             case SIZE_AUTO:
                 if (child->widget) {
                     int h = -1, w = -1;
-                    tui_widget_preferred_size(0, child->widget, content_h, content_w, &h, &w);
+                    tui_widget_preferred_size(child->type_id, child->widget, content_h, content_w, &h, &w);
                     child_main = (layout->direction == LAYOUT_VERTICAL) ? h : w;
                 }
                 if (child_main <= 0) child_main = (layout->direction == LAYOUT_VERTICAL) ? 1 : 10;
@@ -253,7 +260,7 @@ void tui_layout_render(TuiLayout* layout) {
         if (child->nested_layout) {
             tui_layout_render(child->nested_layout);
         } else if (child->widget) {
-            tui_widget_render(0, child->widget);
+            tui_widget_render(child->type_id, child->widget);
         }
     }
 }

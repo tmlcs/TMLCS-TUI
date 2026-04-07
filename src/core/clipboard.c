@@ -1,12 +1,18 @@
 #include "core/clipboard.h"
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
 
 static char s_clipboard_buf[CLIPBOARD_MAX_LEN];
 static int s_clipboard_len = 0;
+static pthread_mutex_t s_clip_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+#define CLIP_LOCK() pthread_mutex_lock(&s_clip_mutex)
+#define CLIP_UNLOCK() pthread_mutex_unlock(&s_clip_mutex)
 
 bool tui_clipboard_copy(const char* text) {
     if (!text) return false;
+    CLIP_LOCK();
     int len = (int)strlen(text);
     if (len >= CLIPBOARD_MAX_LEN) len = CLIPBOARD_MAX_LEN - 1;
 
@@ -29,6 +35,7 @@ bool tui_clipboard_copy(const char* text) {
         b64_out[out_idx++] = (i + 2 < len) ? b64[b2 & 0x3F] : '=';
     }
     b64_out[out_idx] = '\0';
+    CLIP_UNLOCK();
 
     printf("\033]52;c;%s\a", b64_out);
     fflush(stdout);
@@ -36,22 +43,33 @@ bool tui_clipboard_copy(const char* text) {
 }
 
 int tui_clipboard_paste(char* buf, int max_buf) {
-    if (!buf || max_buf <= 0 || s_clipboard_len <= 0) return -1;
+    if (!buf || max_buf <= 0) return -1;
+    CLIP_LOCK();
+    if (s_clipboard_len <= 0) { CLIP_UNLOCK(); return -1; }
     int copy = s_clipboard_len < max_buf - 1 ? s_clipboard_len : max_buf - 1;
     memcpy(buf, s_clipboard_buf, (size_t)copy);
     buf[copy] = '\0';
-    return copy;
+    int result = copy;
+    CLIP_UNLOCK();
+    return result;
 }
 
 const char* tui_clipboard_get(void) {
+    /* NOTE: Caller must hold s_clip_mutex if thread safety is required.
+     * For single-threaded TUI usage, direct access is safe. */
     return s_clipboard_len > 0 ? s_clipboard_buf : NULL;
 }
 
 void tui_clipboard_clear(void) {
+    CLIP_LOCK();
     s_clipboard_buf[0] = '\0';
     s_clipboard_len = 0;
+    CLIP_UNLOCK();
 }
 
 bool tui_clipboard_has_content(void) {
-    return s_clipboard_len > 0;
+    CLIP_LOCK();
+    bool has = s_clipboard_len > 0;
+    CLIP_UNLOCK();
+    return has;
 }

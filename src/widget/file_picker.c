@@ -1,6 +1,7 @@
 #include "widget/file_picker.h"
 #include "core/theme.h"
 #include "core/widget.h"
+#include "core/logger.h"
 #include <dirent.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -18,7 +19,10 @@ static void ensure_capacity(TuiFilePicker* picker) {
         int new_cap = picker->capacity * 2;
         TuiFilePickerEntry* new_entries = (TuiFilePickerEntry*)realloc(picker->entries,
             (size_t)new_cap * sizeof(TuiFilePickerEntry));
-        if (!new_entries) return;
+        if (!new_entries) {
+            tui_log(LOG_ERROR, "OOM in file_picker ensure_capacity");
+            return;
+        }
         picker->entries = new_entries;
         picker->capacity = new_cap;
     }
@@ -303,10 +307,14 @@ void tui_file_picker_render(TuiFilePicker* picker) {
     } else {
         ncplane_putstr_yx(picker->plane, 0, path_start, picker->current_path);
     }
-    /* Border under path */
+    /* Border under path — bulk write */
     ncplane_set_fg_rgb(picker->plane, THEME_FG_SEPARATOR);
-    for (unsigned i = 0; i < cols; i++) {
-        ncplane_putstr_yx(picker->plane, 1, (int)i, "-");
+    {
+        char sep[1024];
+        int n = (int)cols < 1023 ? (int)cols : 1023;
+        memset(sep, '-', (size_t)n);
+        sep[n] = '\0';
+        ncplane_putstr_yx(picker->plane, 1, 0, sep);
     }
 
     /* Draw entries starting at row 2 */

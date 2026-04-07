@@ -26,6 +26,7 @@ TuiCheckbox* tui_checkbox_create(struct ncplane* parent, int y, int x,
     if (!c->plane) { free(c); return NULL; }
 
     c->label = strdup(label);
+    if (!c->label) { ncplane_destroy(c->plane); free(c); return NULL; }
     c->checked = checked;
     c->focused = false;
     c->cb = cb;

@@ -21,14 +21,17 @@ static int find_override(const char* name) {
 
 bool tui_theme_set_color(const char* name, unsigned rgb) {
     unsigned dummy;
-    if (!tui_theme_get_color(name, &dummy) && find_override(name) < 0) {
+    int idx = find_override(name);
+    if (!tui_theme_get_color(name, &dummy) && idx < 0) {
         tui_log(LOG_WARN, "tui_theme_set_color: unknown color '%s'", name);
         return false;
     }
-    int idx = find_override(name);
     if (idx >= 0) {
         s_theme_overrides[idx].rgb = rgb;
     } else if (s_override_count < MAX_THEME_OVERRIDES) {
+        if (strlen(name) > 31) {
+            tui_log(LOG_WARN, "tui_theme_set_color: color name '%s' exceeds 31 chars, truncating", name);
+        }
         strncpy(s_theme_overrides[s_override_count].name, name, 31);
         s_theme_overrides[s_override_count].name[31] = '\0';
         s_theme_overrides[s_override_count].rgb = rgb;

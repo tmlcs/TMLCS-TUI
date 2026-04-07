@@ -91,6 +91,7 @@ void test_slider_handle_key_left_right(void) {
     ni.evtype = NCTYPE_UNKNOWN;
 
     tui_slider_set_value(sl, 50.0f);
+    tui_slider_set_focused(sl, true);
     bool consumed = tui_slider_handle_key(sl, NCKEY_RIGHT, &ni);
     TEST_ASSERT_TRUE(consumed);
     TEST_ASSERT_TRUE(tui_slider_get_value(sl) >= 55.0f - 0.01f && tui_slider_get_value(sl) <= 55.0f + 0.01f);
@@ -107,6 +108,7 @@ void test_slider_handle_key_home_end(void) {
     memset(&ni, 0, sizeof(ni));
     ni.evtype = NCTYPE_UNKNOWN;
 
+    tui_slider_set_focused(sl, true);
     tui_slider_handle_key(sl, NCKEY_END, &ni);
     TEST_ASSERT_TRUE(tui_slider_get_value(sl) >= 100.0f - 0.01f && tui_slider_get_value(sl) <= 100.0f + 0.01f);
 
@@ -121,6 +123,7 @@ void test_slider_handle_key_callbacks(void) {
     memset(&ni, 0, sizeof(ni));
     ni.evtype = NCTYPE_UNKNOWN;
 
+    tui_slider_set_focused(sl, true);
     tui_slider_handle_key(sl, NCKEY_RIGHT, &ni);
     TEST_ASSERT_TRUE(g_cb_called);
     TEST_ASSERT_TRUE(g_cb_value >= 5.0f - 0.01f && g_cb_value <= 5.0f + 0.01f);

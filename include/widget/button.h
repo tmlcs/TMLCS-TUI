@@ -63,8 +63,9 @@ void tui_button_render(TuiButton* btn);
  * @brief Change the button label.
  * @param btn Button.
  * @param label New label text.
+ * @return true on success, false on OOM or invalid arguments.
  */
-void tui_button_set_label(TuiButton* btn, const char* label);
+bool tui_button_set_label(TuiButton* btn, const char* label);
 
 /**
  * @brief Check if the button is currently pressed.

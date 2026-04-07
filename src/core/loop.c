@@ -12,23 +12,32 @@
 #include <notcurses/notcurses.h>
 #include <time.h>
 
+/** Get current monotonic time in nanoseconds */
+static int64_t now_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
+}
+
 int tui_manager_run(TuiManager* mgr, const TuiLoopConfig* config) {
     if (!mgr) return -1;
 
-    int frame_time_ns = 16666666;  /* ~60fps default */
+    mgr->_loop_config = config;
+
+    int64_t frame_time_ns = 16666666;  /* ~60fps default */
     if (config && config->target_fps > 0) {
-        frame_time_ns = 1000000000 / config->target_fps;
+        frame_time_ns = 1000000000LL / config->target_fps;
     }
 
     struct ncinput ni;
 
     while (mgr->_running) {
+        int64_t frame_start = now_ns();
+
         /* Pre-frame callback */
         if (config && config->on_frame) {
             if (!config->on_frame(mgr, config->userdata)) {
-                struct timespec ts = {0, frame_time_ns};
-                nanosleep(&ts, NULL);
-                continue;
+                /* Exit requested via callback — skip to input check */
             }
         }
 
@@ -40,29 +49,33 @@ int tui_manager_run(TuiManager* mgr, const TuiLoopConfig* config) {
             config->after_render(mgr, config->userdata);
         }
 
-        /* Input */
+        /* Input — non-blocking poll */
         uint32_t key = notcurses_get_nblock(mgr->_nc, &ni);
-        if (key == (uint32_t)-1) {
-            struct timespec ts = {0, frame_time_ns};
-            nanosleep(&ts, NULL);
-            continue;
-        }
 
-        bool handled = false;
-        if (key >= NCKEY_BUTTON1 && key <= NCKEY_BUTTON11) {
-            handled = tui_manager_process_mouse(mgr, key, &ni);
-        } else if (key == NCKEY_MOTION) {
-            handled = tui_manager_process_mouse(mgr, key, &ni);
-        } else {
-            handled = tui_manager_process_keyboard(mgr, key, &ni);
-            if (!handled && config && config->on_unhandled_key) {
-                config->on_unhandled_key(mgr, key, &ni, config->userdata);
+        if (key != (uint32_t)-1) {
+            bool handled = false;
+            if (key >= NCKEY_BUTTON1 && key <= NCKEY_BUTTON11) {
+                handled = tui_manager_process_mouse(mgr, key, &ni);
+            } else if (key == NCKEY_MOTION) {
+                handled = tui_manager_process_mouse(mgr, key, &ni);
+            } else {
+                handled = tui_manager_process_keyboard(mgr, key, &ni);
+                if (!handled && config && config->on_unhandled_key) {
+                    config->on_unhandled_key(mgr, key, &ni, config->userdata);
+                }
             }
         }
 
-        /* Frame rate limiting */
-        struct timespec ts = {0, frame_time_ns};
-        nanosleep(&ts, NULL);
+        /* Adaptive frame rate limiting: subtract elapsed time from sleep */
+        int64_t elapsed = now_ns() - frame_start;
+        int64_t sleep_ns = frame_time_ns - elapsed;
+        if (sleep_ns > 0) {
+            struct timespec ts = {
+                .tv_sec  = (time_t)(sleep_ns / 1000000000LL),
+                .tv_nsec = (long)(sleep_ns % 1000000000LL)
+            };
+            nanosleep(&ts, NULL);
+        }
     }
 
     return 0;

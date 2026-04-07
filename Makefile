@@ -1,6 +1,8 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Werror -Iinclude -g
+CFLAGS = -Wall -Wextra -Werror -Iinclude -g -O2
+CFLAGS += -D_FORTIFY_SOURCE=2 -fstack-protector-strong -Wformat-security
 LDFLAGS = -lnotcurses -lnotcurses-core -pthread
+LDFLAGS += -Wl,-z,relro,-z,now
 
 # Library versioning
 VERSION_MAJOR = 0
@@ -302,9 +304,9 @@ $(BUILD_DIR)/test_loop_runner: tests/test_loop.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ tests/test_loop.c $(LOOP_CORE_SRCS) $(WIDGET_MOUSE_SRCS) tests/nc_stubs.c -Iinclude -g -lpthread
 
-# Fuzz test runners (compiled with sanitizer flags)
-FUZZ_CFLAGS = -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
-FUZZ_LDFLAGS = -fsanitize=address,undefined
+# Fuzz test runners (compiled with sanitizer flags and libFuzzer)
+FUZZ_CFLAGS = -fsanitize=address,undefined,fuzzer -fno-omit-frame-pointer -g -O1
+FUZZ_LDFLAGS = -fsanitize=address,undefined,fuzzer
 
 $(BUILD_DIR)/fuzz_text_input_runner: tests/fuzz/fuzz_text_input.c
 	@mkdir -p $(dir $@)
@@ -535,9 +537,19 @@ install: all
 	@install -m 644 include/widget/file_picker.h $(INSTALL_DIR)/widget/
 	@install -m 644 tmlcs-tui.pc $(PREFIX)/lib/pkgconfig/
 	@install -m 755 $(TARGET) $(PREFIX)/bin/
+	@echo "Installing libraries to $(PREFIX)/lib/..."
+	@mkdir -p $(PREFIX)/lib
+	@install -m 644 $(LIB_STATIC) $(PREFIX)/lib/
+	@if [ -f "$(LIB_SHARED_VERSIONED)" ]; then \
+		install -m 755 $(LIB_SHARED_VERSIONED) $(PREFIX)/lib/; \
+		ln -sf $(LIB_SHARED_VERSIONED) $(PREFIX)/lib/$(LIB_SHARED_SONAME); \
+		ln -sf $(LIB_SHARED_VERSIONED) $(PREFIX)/lib/$(LIB_SHARED); \
+	fi
 	@echo "Installation complete."
 	@echo "  Headers: $(INSTALL_DIR)/"
 	@echo "  Binary:  $(PREFIX)/bin/$(TARGET)"
+	@echo "  Static:  $(PREFIX)/lib/$(LIB_STATIC)"
+	@echo "  Shared:  $(PREFIX)/lib/$(LIB_SHARED_VERSIONED)"
 	@echo "  pkg-config: $(PREFIX)/lib/pkgconfig/tmlcs-tui.pc"
 
 uninstall:
@@ -545,4 +557,6 @@ uninstall:
 	@rm -rf $(INSTALL_DIR)
 	@rm -f $(PREFIX)/lib/pkgconfig/tmlcs-tui.pc
 	@rm -f $(PREFIX)/bin/$(TARGET)
+	@rm -f $(PREFIX)/lib/$(LIB_STATIC)
+	@rm -f $(PREFIX)/lib/$(LIB_SHARED) $(PREFIX)/lib/$(LIB_SHARED_SONAME) $(PREFIX)/lib/$(LIB_SHARED_VERSIONED)
 	@echo "Uninstallation complete."

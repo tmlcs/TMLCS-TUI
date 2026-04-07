@@ -1,6 +1,7 @@
 #include "widget/button.h"
 #include "core/theme.h"
 #include "core/widget.h"
+#include "core/logger.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -24,6 +25,7 @@ TuiButton* tui_button_create(struct ncplane* parent, int y, int x, int width,
     if (!btn->plane) { free(btn); return NULL; }
 
     btn->label = strdup(label);
+    if (!btn->label) { ncplane_destroy(btn->plane); free(btn); return NULL; }
     btn->width = width;
     btn->focused = false;
     btn->pressed = false;
@@ -48,11 +50,17 @@ void tui_button_destroy(TuiButton* btn) {
     free(btn);
 }
 
-void tui_button_set_label(TuiButton* btn, const char* label) {
-    if (!btn || !label) return;
+bool tui_button_set_label(TuiButton* btn, const char* label) {
+    if (!btn || !label) return false;
+    char* copy = strdup(label);
+    if (!copy) {
+        tui_log(LOG_ERROR, "Out of memory in tui_button_set_label");
+        return false;
+    }
     free(btn->label);
-    btn->label = strdup(label);
+    btn->label = copy;
     tui_button_render(btn);
+    return true;
 }
 
 bool tui_button_is_pressed(const TuiButton* btn) {
@@ -90,12 +98,14 @@ bool tui_button_handle_mouse(TuiButton* btn, uint32_t key, const struct ncinput*
 
     if (local_y < 0 || local_y >= (int)rows || local_x < 0 || local_x >= (int)cols) return false;
 
-    /* Activate button */
+    /* Activate button — set pressed, render, fire callback, then reset.
+     * Skip second render: both renders happen before screen refresh,
+     * so the pressed state is never visible. The next frame will render
+     * the unpressed state naturally via the render loop. */
     btn->pressed = true;
     tui_button_render(btn);
     if (btn->cb) btn->cb(btn->userdata);
     btn->pressed = false;
-    tui_button_render(btn);
     return true;
 }
 

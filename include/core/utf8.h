@@ -30,6 +30,9 @@ int utf8_cp_display_width(const char* str, int cp_index);
 /* Total display width of string from cp_start to cp_end. */
 int utf8_display_width(const char* str, int cp_start, int cp_end);
 
+/* Get display width of a single codepoint (used by widgets for width heuristics). */
+int utf8_cp_width(uint32_t cp);
+
 /* Extract substring from cp_start to cp_end (codepoint indices).
  * Caller must free(). */
 char* utf8_substring(const char* str, int cp_start, int cp_end);

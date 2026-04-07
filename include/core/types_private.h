@@ -17,6 +17,8 @@
 
 /* Forward declaration for keymap (defined in keymap.c) */
 struct TuiKeymap;
+/* Forward declaration for loop config (defined in loop.h) */
+struct TuiLoopConfig;
 
 /* ============================================================
  * Window — PRIVATE definition
@@ -102,6 +104,7 @@ struct TuiManager {
     unsigned _resize_start_dimy, _resize_start_dimx;
     int _resize_start_mouse_y, _resize_start_mouse_x;
     struct TuiKeymap* _keymap;
+    const struct TuiLoopConfig* _loop_config;  /**< Loop config set during tui_manager_run() */
 };
 
 #endif /* CORE_TYPES_PRIVATE_H */

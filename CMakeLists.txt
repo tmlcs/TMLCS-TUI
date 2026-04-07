@@ -3,12 +3,20 @@ project(tmlcs_tui VERSION 0.5.0 LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+# Default to Release build type if not specified
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 # Find notcurses via pkg-config
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(NOTCURSES REQUIRED notcurses>=3.0)
 
 # Collect source files
 file(GLOB_RECURSE SRC_FILES src/*.c)
+
+# Exclude main.c from library (contains main() — causes duplicate symbol errors)
+list(FILTER SRC_FILES EXCLUDE REGEX "src/main\\.c")
 
 # Exclude test/example files from library sources
 list(FILTER SRC_FILES EXCLUDE REGEX "tests/")

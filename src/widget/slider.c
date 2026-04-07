@@ -70,7 +70,7 @@ void tui_slider_set_focused(TuiSlider* slider, bool focused) {
 }
 
 bool tui_slider_handle_key(TuiSlider* slider, uint32_t key, const struct ncinput* ni) {
-    if (!slider || !ni) return false;
+    if (!slider || !ni || !slider->focused) return false;
 
     float new_val = slider->value;
     bool changed = false;
@@ -132,7 +132,7 @@ void tui_slider_render(TuiSlider* slider) {
 
     uint64_t base = 0;
     ncchannels_set_fg_rgb(&base, slider->fg_track);
-    ncchannels_set_bg_rgb(&base, slider->bg_normal);
+    ncchannels_set_bg_rgb(&base, slider->focused ? slider->bg_focused : slider->bg_normal);
     ncchannels_set_bg_alpha(&base, NCALPHA_OPAQUE);
     ncplane_set_base(slider->plane, " ", 0, base);
     ncplane_erase(slider->plane);

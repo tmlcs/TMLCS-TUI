@@ -65,10 +65,10 @@ void test_layout_add_widget(void) {
     MockWidget w = {3, 20, 0};
     struct ncplane* p = make_dummy_plane();
 
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
     TEST_ASSERT_EQUAL_INT(1, tui_layout_get_child_count(layout));
 
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
     TEST_ASSERT_EQUAL_INT(2, tui_layout_get_child_count(layout));
 
     tui_layout_destroy(layout);
@@ -85,9 +85,9 @@ void test_layout_vertical_spacing(void) {
     MockWidget w = {3, 20, 0};
     struct ncplane* p = make_dummy_plane();
 
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
 
     /* After compute with 20 available height, 3 fixed widgets of 3 each = 9 */
     /* Spacing = 2 * 2 = 4. Total = 9 + 4 = 13 */
@@ -111,8 +111,8 @@ void test_layout_horizontal_spacing(void) {
     MockWidget w = {3, 10, 0};
     struct ncplane* p = make_dummy_plane();
 
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
 
     tui_layout_compute(layout, 20, 30);
     TEST_ASSERT_TRUE(1);
@@ -133,9 +133,9 @@ void test_layout_fixed_and_fill(void) {
     struct ncplane* p = make_dummy_plane();
 
     /* 3 fixed rows of 5 = 15, spacing = 3, remaining for fill */
-    tui_layout_add_widget(layout, &w_fixed, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
-    tui_layout_add_widget(layout, &w_fill, p, SIZE_FILL, 0.0f, ALIGN_STRETCH);
-    tui_layout_add_widget(layout, &w_fixed, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w_fixed, -1, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w_fill, -1, p, SIZE_FILL, 0.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w_fixed, -1, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
 
     tui_layout_compute(layout, 30, 30);
     TEST_ASSERT_TRUE(1);
@@ -155,9 +155,9 @@ void test_layout_weight_distribution(void) {
     struct ncplane* p = make_dummy_plane();
 
     /* weight 1 + weight 2 + weight 1 = 4 total */
-    tui_layout_add_widget(layout, &w, p, SIZE_WEIGHT, 1.0f, ALIGN_STRETCH);
-    tui_layout_add_widget(layout, &w, p, SIZE_WEIGHT, 2.0f, ALIGN_STRETCH);
-    tui_layout_add_widget(layout, &w, p, SIZE_WEIGHT, 1.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_WEIGHT, 1.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_WEIGHT, 2.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_WEIGHT, 1.0f, ALIGN_STRETCH);
 
     tui_layout_compute(layout, 40, 30);
     TEST_ASSERT_TRUE(1);
@@ -177,7 +177,7 @@ void test_layout_padding(void) {
     MockWidget w = {5, 20, 0};
     struct ncplane* p = make_dummy_plane();
 
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
 
     tui_layout_compute(layout, 20, 30);
     TEST_ASSERT_TRUE(1);
@@ -202,14 +202,14 @@ void test_layout_nested(void) {
     struct ncplane* p = make_dummy_plane();
 
     /* Add widgets to child layout */
-    tui_layout_add_widget(child, &w, p, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
-    tui_layout_add_widget(child, &w, p, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(child, &w, -1, p, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(child, &w, -1, p, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
 
     /* Add child layout to parent */
     tui_layout_add_layout(parent, child, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
 
     /* Add another widget to parent */
-    tui_layout_add_widget(parent, &w, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(parent, &w, -1, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
 
     tui_layout_compute(parent, 30, 30);
     TEST_ASSERT_TRUE(1);
@@ -227,7 +227,7 @@ void test_layout_compute_marks_clean(void) {
     MockWidget w = {3, 20, 0};
     struct ncplane* p = make_dummy_plane();
 
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
     tui_layout_compute(layout, 20, 30);
 
     /* After compute, the layout is marked clean (needs_compute = false) */
@@ -247,9 +247,9 @@ void test_layout_remove_child(void) {
     MockWidget w = {3, 20, 0};
     struct ncplane* p = make_dummy_plane();
 
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 7.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 5.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 7.0f, ALIGN_STRETCH);
     TEST_ASSERT_EQUAL_INT(3, tui_layout_get_child_count(layout));
 
     /* Remove middle child */
@@ -276,7 +276,7 @@ void test_layout_remove_nested_layout(void) {
 
     MockWidget w = {3, 10, 0};
     struct ncplane* p = make_dummy_plane();
-    tui_layout_add_widget(child, &w, p, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(child, &w, -1, p, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
     tui_layout_add_layout(parent, child, SIZE_FIXED, 10.0f, ALIGN_STRETCH);
 
     TEST_ASSERT_EQUAL_INT(1, tui_layout_get_child_count(parent));
@@ -297,7 +297,7 @@ void test_layout_mark_dirty(void) {
     MockWidget w = {3, 20, 0};
     struct ncplane* p = make_dummy_plane();
 
-    tui_layout_add_widget(layout, &w, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_FIXED, 3.0f, ALIGN_STRETCH);
     tui_layout_compute(layout, 20, 30);
 
     /* Mark dirty and recompute */
@@ -316,7 +316,7 @@ void test_layout_null_safety(void) {
     tui_layout_destroy(NULL);
     tui_layout_set_spacing(NULL, 5);
     tui_layout_set_padding(NULL, 1, 1, 1, 1);
-    tui_layout_add_widget(NULL, NULL, NULL, SIZE_FIXED, 0, ALIGN_STRETCH);
+    tui_layout_add_widget(NULL, NULL, -1, NULL, SIZE_FIXED, 0, ALIGN_STRETCH);
     tui_layout_add_layout(NULL, NULL, SIZE_FIXED, 0, ALIGN_STRETCH);
     tui_layout_remove_child(NULL, 0);
     tui_layout_compute(NULL, 10, 10);
@@ -337,8 +337,8 @@ void test_layout_percent_sizing(void) {
     MockWidget w = {0, 20, 0};
     struct ncplane* p = make_dummy_plane();
 
-    tui_layout_add_widget(layout, &w, p, SIZE_PERCENT, 30.0f, ALIGN_STRETCH);
-    tui_layout_add_widget(layout, &w, p, SIZE_PERCENT, 70.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_PERCENT, 30.0f, ALIGN_STRETCH);
+    tui_layout_add_widget(layout, &w, -1, p, SIZE_PERCENT, 70.0f, ALIGN_STRETCH);
 
     tui_layout_compute(layout, 100, 30);
     TEST_ASSERT_TRUE(1);

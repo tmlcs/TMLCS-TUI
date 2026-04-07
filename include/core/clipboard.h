@@ -16,7 +16,9 @@ bool tui_clipboard_copy(const char* text);
  * @brief Paste from clipboard internal buffer.
  * @param buf Output buffer.
  * @param max_buf Maximum buffer size.
- * @return Number of characters pasted, or -1 if empty.
+ * @return Number of characters pasted, or -1 if:
+ *         - buf is NULL or max_buf <= 0 (invalid arguments)
+ *         - Clipboard is empty (no content to paste)
  */
 int tui_clipboard_paste(char* buf, int max_buf);
 

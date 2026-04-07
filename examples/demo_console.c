@@ -50,39 +50,7 @@ static void on_command_submit(const char* text, void* userdata) {
 static void console_log_render(TuiWindow* win) {
     if (!win || !win->_plane) return;
     demo_render_window_frame(win);
-
-    unsigned dimy, dimx;
-    ncplane_dim_yx(win->_plane, &dimy, &dimx);
-
-    TuiLogBuffer* buf = tui_logger_get_buffer();
-    if (!buf || buf->count == 0) {
-        ncplane_set_fg_rgb(win->_plane, THEME_FG_DEFAULT);
-        ncplane_printf_yx(win->_plane, 2, 2, "No logs yet. Type commands below.");
-        return;
-    }
-
-    int rows = (int)dimy - 2;
-    if (rows <= 0) return;
-    int entries = (buf->count < rows) ? buf->count : rows;
-    int start = (buf->head - entries + MAX_LOG_LINES) % MAX_LOG_LINES;
-    int offset = rows - entries;
-
-    for (int i = 0; i < entries; i++) {
-        int idx = (start + i) % MAX_LOG_LINES;
-        LogLevel lv = buf->levels[idx];
-        switch(lv) {
-            case LOG_ERROR: ncplane_set_fg_rgb(win->_plane, THEME_FG_LOG_ERROR); break;
-            case LOG_WARN:  ncplane_set_fg_rgb(win->_plane, THEME_FG_LOG_WARN); break;
-            case LOG_DEBUG: ncplane_set_fg_rgb(win->_plane, THEME_FG_LOG_DEBUG); break;
-            default:        ncplane_set_fg_rgb(win->_plane, THEME_FG_LOG_INFO); break;
-        }
-        ncplane_set_bg_rgb(win->_plane, THEME_BG_WINDOW);
-        char line[256];
-        int max_cols = (int)dimx - 4;
-        if (max_cols <= 0) max_cols = 1;
-        snprintf(line, sizeof(line), "%.*s", max_cols, buf->lines[idx]);
-        ncplane_printf_yx(win->_plane, 1 + offset + i, 2, "%s", line);
-    }
+    demo_render_log_buffer(win);
 }
 
 static void console_input_render(TuiWindow* win) {

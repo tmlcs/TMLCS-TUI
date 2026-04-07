@@ -27,17 +27,30 @@ int utf8_encode(uint32_t cp, char* out) {
 uint32_t utf8_decode(const char** in) {
     const unsigned char* s = (const unsigned char*)*in;
     uint32_t cp;
+
     if (s[0] < 0x80) {
         cp = s[0];
         (*in)++;
     } else if ((s[0] & 0xE0) == 0xC0) {
+        /* 2-byte sequence — check continuation byte */
+        if (s[1] == '\0' || (s[1] & 0xC0) != 0x80) { (*in)++; return 0xFFFD; }
         cp = ((s[0] & 0x1F) << 6) | (s[1] & 0x3F);
+        /* Reject overlong encoding */
+        if (cp < 0x80) { (*in) += 2; return 0xFFFD; }
         (*in) += 2;
     } else if ((s[0] & 0xF0) == 0xE0) {
+        /* 3-byte sequence — check continuation bytes */
+        if (s[1] == '\0' || (s[1] & 0xC0) != 0x80 || s[2] == '\0' || (s[2] & 0xC0) != 0x80) { (*in)++; return 0xFFFD; }
         cp = ((s[0] & 0x0F) << 12) | ((s[1] & 0x3F) << 6) | (s[2] & 0x3F);
+        /* Reject overlong encoding and surrogates */
+        if (cp < 0x800 || (cp >= 0xD800 && cp <= 0xDFFF)) { (*in) += 3; return 0xFFFD; }
         (*in) += 3;
     } else {
+        /* 4-byte sequence — check continuation bytes */
+        if (s[1] == '\0' || (s[1] & 0xC0) != 0x80 || s[2] == '\0' || (s[2] & 0xC0) != 0x80 || s[3] == '\0' || (s[3] & 0xC0) != 0x80) { (*in)++; return 0xFFFD; }
         cp = ((s[0] & 0x07) << 18) | ((s[1] & 0x3F) << 12) | ((s[2] & 0x3F) << 6) | (s[3] & 0x3F);
+        /* Reject overlong or out-of-range */
+        if (cp < 0x10000 || cp > 0x10FFFF) { (*in) += 4; return 0xFFFD; }
         (*in) += 4;
     }
     return cp;
@@ -81,7 +94,11 @@ int utf8_cp_display_width(const char* str, int cp_index) {
         if (*p == '\0') break;
         cp = utf8_decode(&p);
     }
-    /* Simple heuristic: CJK and emoji are 2 columns wide */
+    return utf8_cp_width(cp);
+}
+
+/** Check if a codepoint is a wide character (CJK, emoji, etc.) */
+int utf8_cp_width(uint32_t cp) {
     if (cp >= 0x1100 && cp <= 0x115F) return 2;  /* Hangul Jamo */
     if (cp >= 0x2E80 && cp <= 0x9FFF) return 2;  /* CJK */
     if (cp >= 0xAC00 && cp <= 0xD7AF) return 2;  /* Hangul Syllables */

@@ -1,6 +1,7 @@
 #include "widget/radio_group.h"
 #include "core/theme.h"
 #include "core/widget.h"
+#include "core/logger.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,7 +14,10 @@ static void ensure_capacity(TuiRadioGroup* group) {
     if (group->count >= group->capacity) {
         int new_cap = group->capacity * 2;
         char** new_labels = (char**)realloc(group->labels, (size_t)new_cap * sizeof(char*));
-        if (!new_labels) return;
+        if (!new_labels) {
+            tui_log(LOG_ERROR, "OOM in radio_group ensure_capacity");
+            return;
+        }
         group->labels = new_labels;
         group->capacity = new_cap;
     }

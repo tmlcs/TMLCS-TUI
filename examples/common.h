@@ -6,6 +6,7 @@
 
 /* Access to internal fields for demo purposes */
 #include "core/types_private.h"
+#include "core/logger.h"
 
 /* Forward declarations for widget types not in types_private.h */
 typedef struct TuiDialog TuiDialog;
@@ -46,6 +47,13 @@ extern DemoState g_demo;
  * ============================================================ */
 
 void demo_render_window_frame(TuiWindow* win);
+
+/* ============================================================
+ * Log buffer renderer (shared by console and log viewer)
+ * ============================================================ */
+
+/** Render a TuiLogBuffer into a window, starting below y=1. */
+void demo_render_log_buffer(TuiWindow* win);
 
 /* ============================================================
  * Mock data updater

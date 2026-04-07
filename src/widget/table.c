@@ -1,6 +1,7 @@
 #include "widget/table.h"
 #include "core/theme.h"
 #include "core/widget.h"
+#include "core/logger.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -14,7 +15,10 @@ static void ensure_row_capacity(TuiTable* table) {
         int new_cap = table->row_capacity * 2;
         char** new_cells = (char**)realloc(table->cells,
             (size_t)new_cap * (size_t)table->col_count * sizeof(char*));
-        if (!new_cells) return;
+        if (!new_cells) {
+            tui_log(LOG_ERROR, "OOM in table ensure_row_capacity");
+            return;
+        }
         /* Zero out new row slots */
         for (int i = table->row_count * table->col_count;
              i < new_cap * table->col_count; i++) {
@@ -91,8 +95,13 @@ void tui_table_destroy(TuiTable* table) {
 
 bool tui_table_set_header(TuiTable* table, int col, const char* header) {
     if (!table || col < 0 || col >= table->col_count || !header) return false;
+    char* copy = strdup(header);
+    if (!copy) {
+        tui_log(LOG_ERROR, "Out of memory in tui_table_set_header");
+        return false;
+    }
     free(table->headers[col]);
-    table->headers[col] = strdup(header);
+    table->headers[col] = copy;
     int hl = (int)strlen(header);
     if (hl > table->col_widths[col]) table->col_widths[col] = hl;
     return true;
@@ -107,11 +116,29 @@ int tui_table_add_row(TuiTable* table, const char** values) {
     for (int col = 0; col < table->col_count; col++) {
         int idx = row_idx * table->col_count + col;
         if (values[col]) {
-            table->cells[idx] = strdup(values[col]);
+            char* copy = strdup(values[col]);
+            if (!copy) {
+                tui_log(LOG_ERROR, "Out of memory in tui_table_add_row");
+                for (int c = 0; c < col; c++) {
+                    free(table->cells[row_idx * table->col_count + c]);
+                    table->cells[row_idx * table->col_count + c] = NULL;
+                }
+                return -1;
+            }
+            table->cells[idx] = copy;
             int vl = (int)strlen(values[col]);
             if (vl > table->col_widths[col]) table->col_widths[col] = vl;
         } else {
-            table->cells[idx] = strdup("");
+            char* empty = strdup("");
+            if (!empty) {
+                tui_log(LOG_ERROR, "Out of memory in tui_table_add_row");
+                for (int c = 0; c < col; c++) {
+                    free(table->cells[row_idx * table->col_count + c]);
+                    table->cells[row_idx * table->col_count + c] = NULL;
+                }
+                return -1;
+            }
+            table->cells[idx] = empty;
         }
     }
     table->row_count++;
@@ -260,10 +287,14 @@ void tui_table_render(TuiTable* table) {
         x_pos += w + 1;
     }
 
-    /* Draw separator under header */
+    /* Draw separator under header — bulk write */
     ncplane_set_fg_rgb(table->plane, table->fg_separator);
-    for (unsigned i = 0; i < cols; i++) {
-        ncplane_putstr_yx(table->plane, 1, (int)i, "-");
+    {
+        char sep[1024];
+        int n = (int)cols < 1023 ? (int)cols : 1023;
+        memset(sep, '-', (size_t)n);
+        sep[n] = '\0';
+        ncplane_putstr_yx(table->plane, 1, 0, sep);
     }
 
     /* Draw data rows */

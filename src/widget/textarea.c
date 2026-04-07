@@ -134,8 +134,11 @@ bool tui_textarea_handle_key(TuiTextArea* ta, uint32_t key, const struct ncinput
             /* Split current line at cursor */
             int split_byte = utf8_cp_to_byte_offset(ta->lines[ta->cursor_line], ta->cursor_col);
             char* rest = ta->lines[ta->cursor_line] + split_byte;
-            strncpy(ta->lines[ta->cursor_line + 1], rest, sizeof(ta->lines[0]) - 1);
-            ta->lines[ta->cursor_line + 1][sizeof(ta->lines[0]) - 1] = '\0';
+            size_t rest_len = strlen(rest);
+            size_t max_len = sizeof(ta->lines[0]) - 1;
+            if (rest_len > max_len) rest_len = max_len;
+            memcpy(ta->lines[ta->cursor_line + 1], rest, rest_len);
+            ta->lines[ta->cursor_line + 1][rest_len] = '\0';
             ta->lines[ta->cursor_line][split_byte] = '\0';
             textarea_update_line_stats(ta, ta->cursor_line);
             textarea_update_line_stats(ta, ta->cursor_line + 1);
@@ -416,11 +419,7 @@ void tui_textarea_render(TuiTextArea* ta) {
             int buf_byte = utf8_cp_to_byte_offset(line, cp_i);
             const char* cp_ptr = line + buf_byte;
             uint32_t cp = utf8_decode(&cp_ptr);
-            int cp_width = (cp >= 0x1100 && cp <= 0x115F) ||
-                           (cp >= 0x2E80 && cp <= 0x9FFF) ||
-                           (cp >= 0xAC00 && cp <= 0xD7AF) ||
-                           (cp >= 0xF900 && cp <= 0xFAFF) ||
-                           (cp >= 0x1F300 && cp <= 0x1F9FF) ? 2 : 1;
+            int cp_width = utf8_cp_width(cp);
 
             if (screen_col + cp_width > max_cols) break;
 

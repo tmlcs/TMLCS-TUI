@@ -1,6 +1,7 @@
 #include "widget/dialog.h"
 #include "core/theme.h"
 #include "core/widget.h"
+#include "core/logger.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,7 +15,10 @@ static void ensure_capacity(TuiDialog* dialog) {
     if (dialog->button_count >= dialog->button_capacity) {
         int new_cap = dialog->button_capacity * 2;
         char** new_btn = (char**)realloc(dialog->buttons, (size_t)new_cap * sizeof(char*));
-        if (!new_btn) return;
+        if (!new_btn) {
+            tui_log(LOG_ERROR, "OOM in dialog ensure_capacity");
+            return;
+        }
         dialog->buttons = new_btn;
         dialog->button_capacity = new_cap;
     }
@@ -36,7 +40,9 @@ TuiDialog* tui_dialog_create(struct ncplane* parent, int y, int x,
     if (!dialog->plane) { free(dialog); return NULL; }
 
     dialog->title = strdup(title);
+    if (!dialog->title) { free(dialog); return NULL; }
     dialog->message = strdup(message);
+    if (!dialog->message) { free(dialog->title); ncplane_destroy(dialog->plane); free(dialog); return NULL; }
     dialog->button_capacity = 4;
     dialog->buttons = (char**)calloc((size_t)dialog->button_capacity, sizeof(char*));
     if (!dialog->buttons) {
@@ -182,11 +188,15 @@ void tui_dialog_render(TuiDialog* dialog) {
     ncplane_set_base(dialog->plane, " ", 0, base);
     ncplane_erase(dialog->plane);
 
-    /* Draw border */
+    /* Draw border — bulk writes instead of char-by-char */
     ncplane_set_fg_rgb(dialog->plane, dialog->border_color);
-    for (unsigned i = 0; i < cols; i++) {
-        ncplane_putstr_yx(dialog->plane, 0, (int)i, "-");
-        ncplane_putstr_yx(dialog->plane, dialog->height - 1, (int)i, "-");
+    {
+        char hline[1024];
+        int n = (int)cols < 1023 ? (int)cols : 1023;
+        memset(hline, '-', (size_t)n);
+        hline[n] = '\0';
+        ncplane_putstr_yx(dialog->plane, 0, 0, hline);
+        ncplane_putstr_yx(dialog->plane, dialog->height - 1, 0, hline);
     }
     for (int row = 0; row < dialog->height; row++) {
         ncplane_putstr_yx(dialog->plane, row, 0, "|");

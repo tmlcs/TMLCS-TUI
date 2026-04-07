@@ -64,7 +64,8 @@ static void on_btn_review(void* ud) {
 }
 static void on_btn_dialog(void* ud) {
     (void)ud;
-    tui_log(LOG_INFO, "Dialog feature - confirmation dialogs available via tui_dialog widget");
+    s_dialog_visible = true;
+    tui_log(LOG_INFO, "Showing dialog");
 }
 static void on_dialog_close(int result, void* ud) {
     (void)ud;
