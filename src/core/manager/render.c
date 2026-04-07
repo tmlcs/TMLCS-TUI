@@ -183,14 +183,21 @@ void tui_manager_render(TuiManager* manager) {
                     unsigned w_dimy, w_dimx;
                     ncplane_dim_yx(win->_plane, &w_dimy, &w_dimx);
                     ncplane_set_fg_rgb(win->_plane, THEME_FG_TAB_ACTIVE);
+                    /* Top and bottom edges */
                     for (unsigned ci = 1; ci < w_dimx - 1; ci++) {
                         ncplane_putchar_yx(win->_plane, 0, (int)ci, '=');
                         ncplane_putchar_yx(win->_plane, (int)w_dimy - 1, (int)ci, '=');
                     }
+                    /* Left and right edges */
                     for (unsigned ri = 1; ri < w_dimy - 1; ri++) {
                         ncplane_putchar_yx(win->_plane, (int)ri, 0, '|');
                         ncplane_putchar_yx(win->_plane, (int)ri, (int)w_dimx - 1, '|');
                     }
+                    /* Corners */
+                    ncplane_putchar_yx(win->_plane, 0, 0, '+');
+                    ncplane_putchar_yx(win->_plane, 0, (int)w_dimx - 1, '+');
+                    ncplane_putchar_yx(win->_plane, (int)w_dimy - 1, 0, '+');
+                    ncplane_putchar_yx(win->_plane, (int)w_dimy - 1, (int)w_dimx - 1, '+');
                 }
             }
         }

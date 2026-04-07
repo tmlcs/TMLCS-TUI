@@ -2,6 +2,12 @@ CC = gcc
 CFLAGS = -Wall -Wextra -Werror -Iinclude -g
 LDFLAGS = -lnotcurses -lnotcurses-core -pthread
 
+# Library versioning
+VERSION_MAJOR = 0
+VERSION_MINOR = 5
+VERSION_PATCH = 0
+VERSION = $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
+
 # Test framework
 TEST_SRC = tests/test_logger.c
 TEST_OBJ = $(BUILD_DIR)/test_logger.o
@@ -28,10 +34,9 @@ TARGET = mi_tui
 # ============================================
 LIB_STATIC = libtmlcs_tui.a
 LIB_SHARED = libtmlcs_tui.so
+LIB_SHARED_VERSIONED = libtmlcs_tui.so.$(VERSION)
+LIB_SHARED_SONAME = libtmlcs_tui.so.$(VERSION_MAJOR)
 
-# ============================================
-# Installation
-# ============================================
 PREFIX ?= /usr/local
 INSTALL_DIR = $(PREFIX)/include/tmlcs-tui
 
@@ -48,8 +53,12 @@ shared: CFLAGS += -fPIC
 shared: LDFLAGS += -shared
 shared: $(LIB_SHARED)
 
-$(LIB_SHARED): $(OBJS)
-	$(CC) -shared -o $@ $^ $(LDFLAGS)
+$(LIB_SHARED): $(LIB_SHARED_VERSIONED)
+	ln -sf $(LIB_SHARED_VERSIONED) $(LIB_SHARED_SONAME)
+	ln -sf $(LIB_SHARED_VERSIONED) $(LIB_SHARED)
+
+$(LIB_SHARED_VERSIONED): $(OBJS)
+	$(CC) -shared -Wl,-soname,$(LIB_SHARED_SONAME) -o $@ $^ $(LDFLAGS)
 
 $(TARGET): $(OBJS) $(BUILD_DIR)/main.o $(BUILD_DIR)/examples/demo.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
@@ -489,6 +498,8 @@ install: all
 	@install -m 644 include/core/clipboard.h $(INSTALL_DIR)/core/
 	@install -m 644 include/core/help.h $(INSTALL_DIR)/core/
 	@install -m 644 include/core/theme_loader.h $(INSTALL_DIR)/core/
+	@install -m 644 include/core/debug.h $(INSTALL_DIR)/core/
+	@install -m 644 include/core/anim.h $(INSTALL_DIR)/core/
 	@install -m 644 include/tmlcs_tui.h $(INSTALL_DIR)/
 	@install -m 644 include/widget/text_input.h $(INSTALL_DIR)/widget/
 	@install -m 644 include/widget/textarea.h $(INSTALL_DIR)/widget/
