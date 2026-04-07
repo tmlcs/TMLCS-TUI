@@ -11,10 +11,55 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <time.h>
 
 /* Minimal type stubs */
 struct ncplane { int _dummy; };
 struct notcurses { int _dummy; };
+typedef uint32_t NcKeyType;
+/* Notcurses key constants */
+#define NCKEY_BUTTON1 0x10000
+#define NCKEY_BUTTON2 0x10001
+#define NCKEY_BUTTON3 0x10002
+#define NCKEY_BUTTON4 0x10003
+#define NCKEY_BUTTON5 0x10004
+#define NCKEY_BUTTON6 0x10005
+#define NCKEY_BUTTON7 0x10006
+#define NCKEY_BUTTON8 0x10007
+#define NCKEY_BUTTON9 0x10008
+#define NCKEY_BUTTON10 0x10009
+#define NCKEY_BUTTON11 0x1000A
+#define NCKEY_MOTION 0x10010
+#define NCKEY_SCROLL_UP 0x10011
+#define NCKEY_SCROLL_DOWN 0x10012
+#define NCKEY_ESCAPE 0x1B
+#define NCKEY_LEFT 0x1000B
+#define NCKEY_RIGHT 0x1000C
+#define NCKEY_UP 0x1000D
+#define NCKEY_DOWN 0x1000E
+#define NCKEY_TAB 0x09
+#define NCKEY_F1 0x1003F
+#define NCKEY_RESIZE 0x10040
+#define MAX_MOUSE_BUTTON NCKEY_BUTTON11
+
+typedef enum {
+    NCTYPE_UNKNOWN = 0,
+    NCTYPE_PRESS = 1,
+    NCTYPE_RELEASE = 2,
+    NCTYPE_REPEAT = 3,
+    NCTYPE_MOTION = 4
+} NcInputType;
+
+typedef struct ncinput {
+    uint32_t id;
+    int y, x;
+    NcInputType evtype;
+    bool ctrl, alt, shift;
+    bool super_, meta, hyper;
+    uint64_t modifiers;
+} ncinput;
+
 typedef struct ncplane_options {
     int y, x;
     unsigned rows, cols;
@@ -192,6 +237,8 @@ struct ncplane* notcurses_stdplane(struct notcurses* nc) {
 }
 int notcurses_render(struct notcurses* nc) { (void)nc; return 0; }
 int notcurses_mice_enable(struct notcurses* nc, unsigned m) { (void)nc;(void)m; return 0; }
+uint32_t notcurses_get_nblock(const struct notcurses* nc, struct ncinput* ni) { (void)nc;(void)ni; return (uint32_t)-1; }
+uint32_t notcurses_get(struct notcurses* n, const struct timespec* ts, struct ncinput* ni) { (void)n;(void)ts;(void)ni; return (uint32_t)-1; }
 
 /* --- Additional stubs required by manager/render.c --- */
 

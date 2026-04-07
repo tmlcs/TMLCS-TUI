@@ -1,4 +1,5 @@
 #include "core/manager.h"
+#include "core/keymap.h"
 #include "core/workspace.h"
 #include "core/logger.h"
 #include "core/theme.h"
@@ -49,11 +50,19 @@ TuiManager* tui_manager_create(struct notcurses* nc) {
     mgr->_last_active_window = -1;
     mgr->_last_clock[0] = '\0';
 
+    /* Initialize keymap with default bindings */
+    tui_keymap_init(mgr);
+
     return mgr;
 }
 
 void tui_manager_destroy(TuiManager* manager) {
     if (!manager) return;
+
+    /* Free keymap before workspaces */
+    free(manager->_keymap);
+    manager->_keymap = NULL;
+
     for (int i = 0; i < manager->_workspace_count; i++) {
         tui_workspace_destroy(manager->_workspaces[i]);
     }

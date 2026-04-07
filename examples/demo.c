@@ -18,6 +18,7 @@
 #include "core/window.h"
 #include "core/logger.h"
 #include "core/theme.h"
+#include "core/loop.h"
 #include "core/types_private.h"
 #include "widget/text_input.h"
 #include "widget/textarea.h"
@@ -700,6 +701,17 @@ static void log_stats_render(TuiWindow* win) {
 }
 
 /* ============================================================
+ * Event loop callback: route unhandled keys to active text input
+ * ============================================================ */
+
+static void demo_on_unhandled_key(TuiManager* mgr, uint32_t key, const struct ncinput* ni, void* userdata) {
+    (void)mgr; (void)ni; (void)userdata;
+    if (g_active_input) {
+        tui_text_input_handle_key(g_active_input, key, &ni);
+    }
+}
+
+/* ============================================================
  * Demo main - Create all 8 workspaces
  * ============================================================ */
 
@@ -954,35 +966,12 @@ int demo_main(struct notcurses* nc) {
     /* ============================================================
      * Event Loop
      * ============================================================ */
-    struct ncinput ni;
-    while (mgr->_running) {
-        tui_manager_render(mgr);
-
-        uint32_t key = notcurses_get_nblock(nc, &ni);
-
-        if (key == (uint32_t)-1) {
-            struct timespec ts = {0, 16000000};
-            nanosleep(&ts, NULL);
-            continue;
-        }
-
-        if (key >= NCKEY_BUTTON1 && key <= NCKEY_BUTTON11) {
-            tui_manager_process_mouse(mgr, key, &ni);
-        } else if (key == NCKEY_MOTION) {
-            tui_manager_process_mouse(mgr, key, &ni);
-        } else {
-            if (key == 'x') {
-                tui_manager_process_keyboard(mgr, key, &ni);
-            } else {
-                bool consumed = g_active_input
-                                ? tui_text_input_handle_key(g_active_input, key, &ni)
-                                : false;
-                if (!consumed) {
-                    tui_manager_process_keyboard(mgr, key, &ni);
-                }
-            }
-        }
-    }
+    TuiLoopConfig loop_config = {
+        .on_unhandled_key = demo_on_unhandled_key,
+        .target_fps = 60,
+        .userdata = NULL,
+    };
+    tui_manager_run(mgr, &loop_config);
 
     tui_manager_destroy(mgr);
     return 0;

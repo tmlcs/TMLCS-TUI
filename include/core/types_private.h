@@ -15,6 +15,9 @@
 
 #include "core/types.h"
 
+/* Forward declaration for keymap (defined in keymap.c) */
+struct TuiKeymap;
+
 /* ============================================================
  * Window — PRIVATE definition
  * ============================================================ */
@@ -29,13 +32,14 @@ struct TuiWindow {
     bool _needs_redraw;              /**< If true, window content has changed and needs repainting */
     bool _focused;                   /**< True if this window has active focus (different border) */
 
-    /* Widget registry for mouse event routing */
-    void*  _widgets[MAX_WINDOW_WIDGETS];         /**< Registered widget instance pointers */
-    int    _widget_type_ids[MAX_WINDOW_WIDGETS]; /**< Registered widget type_ids */
-    struct ncplane* _widget_planes[MAX_WINDOW_WIDGETS]; /**< Widget planes for hit testing */
-    bool   _widget_focusable[MAX_WINDOW_WIDGETS];/**< Whether each widget can receive focus */
-    int    _widget_count;                        /**< Number of registered widgets */
-    int    _focused_widget_index;                /**< Index of the currently focused widget (-1 if none) */
+    /* Widget registry for mouse event routing (dynamic) */
+    void**  _widgets;               /**< Dynamic array of widget instance pointers */
+    int*    _widget_type_ids;       /**< Dynamic array of widget type_ids */
+    struct ncplane** _widget_planes;/**< Dynamic array of widget planes for hit testing */
+    bool*   _widget_focusable;      /**< Dynamic array of widget focus flags */
+    int     _widget_count;          /**< Number of registered widgets */
+    int     _widget_capacity;       /**< Allocated capacity of widget arrays */
+    int     _focused_widget_index;  /**< Index of the currently focused widget (-1 if none) */
 
     struct TuiLayout* _attached_layout; /**< Layout this window is attached to, if any */
 };
@@ -97,6 +101,7 @@ struct TuiManager {
     int _drag_start_win_height, _drag_start_win_width;
     unsigned _resize_start_dimy, _resize_start_dimx;
     int _resize_start_mouse_y, _resize_start_mouse_x;
+    struct TuiKeymap* _keymap;
 };
 
 #endif /* CORE_TYPES_PRIVATE_H */

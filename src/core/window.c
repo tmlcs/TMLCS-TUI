@@ -6,6 +6,35 @@
 #include "core/theme.h"
 #include "core/types_private.h"
 #include <stdlib.h>
+#include <string.h>
+
+/* ------------------------------------------------------------------ */
+/*  Dynamic widget registry helper                                    */
+/* ------------------------------------------------------------------ */
+
+#define WIDGET_INITIAL_CAPACITY 8
+
+static void ensure_widget_capacity(TuiWindow* win) {
+    if (win->_widget_count < win->_widget_capacity) return;
+
+    win->_widget_capacity = win->_widget_capacity
+        ? win->_widget_capacity * 2
+        : WIDGET_INITIAL_CAPACITY;
+
+    win->_widgets = (void**)realloc(win->_widgets,
+        (size_t)win->_widget_capacity * sizeof(void*));
+    win->_widget_type_ids = (int*)realloc(win->_widget_type_ids,
+        (size_t)win->_widget_capacity * sizeof(int));
+    win->_widget_planes = (struct ncplane**)realloc(win->_widget_planes,
+        (size_t)win->_widget_capacity * sizeof(struct ncplane*));
+    win->_widget_focusable = (bool*)realloc(win->_widget_focusable,
+        (size_t)win->_widget_capacity * sizeof(bool));
+
+    if (!win->_widgets || !win->_widget_type_ids ||
+        !win->_widget_planes || !win->_widget_focusable) {
+        tui_log(LOG_ERROR, "OOM in ensure_widget_capacity");
+    }
+}
 
 TuiWindow* tui_window_create(TuiTab* tab, int width, int height) {
     if (!tab) {
@@ -49,6 +78,16 @@ void tui_window_destroy(TuiWindow* win) {
     win->_text_input = NULL;
     win->_render_cb = NULL;
     win->_on_destroy = NULL;
+    free(win->_widgets);
+    free(win->_widget_type_ids);
+    free(win->_widget_planes);
+    free(win->_widget_focusable);
+    win->_widgets = NULL;
+    win->_widget_type_ids = NULL;
+    win->_widget_planes = NULL;
+    win->_widget_focusable = NULL;
+    win->_widget_count = 0;
+    win->_widget_capacity = 0;
     free(win);
 }
 
@@ -92,8 +131,9 @@ void tui_window_set_focused_widget_index(TuiWindow* win, int index) {
 
 void tui_window_add_widget(TuiWindow* win, void* widget, struct ncplane* plane, int type_id) {
     if (!win || !widget || !plane) return;
-    if (win->_widget_count >= MAX_WINDOW_WIDGETS) {
-        tui_log(LOG_ERROR, "tui_window_add_widget: widget limit reached");
+    ensure_widget_capacity(win);
+    if (win->_widget_count >= win->_widget_capacity) {
+        tui_log(LOG_ERROR, "tui_window_add_widget: failed to allocate widget storage");
         return;
     }
     int widx = win->_widget_count;
